@@ -72,7 +72,7 @@ export function HybridDVHDRTool() {
     dvPath: '',
     outputPath: '',
     mode: 'single',
-    parallelTasks: 4,
+    parallelTasks: 8,
     keepTempFiles: false,
   });
   
@@ -201,6 +201,14 @@ export function HybridDVHDRTool() {
     };
   }, [addLog]);
 
+  useEffect(() => {
+    if (!isTauri()) return;
+    const timer = setTimeout(() => {
+      handleCheckUpdates(true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [handleCheckUpdates]);
+
 
   const derivedMode: ProcessingMode =
     pathKinds.hdr === 'folder' && pathKinds.dv === 'folder' ? 'batch' : 'single';
@@ -277,7 +285,9 @@ export function HybridDVHDRTool() {
           normalized.includes('404') ||
           normalized.includes('not found')
         ) {
-          addLog('info', 'No update feed found yet. Publish a release to enable updates.');
+          if (!auto) {
+            addLog('info', 'No update feed found yet. Publish a release to enable updates.');
+          }
         } else {
           addLog('error', `Update check failed: ${message}`);
         }
@@ -526,7 +536,12 @@ export function HybridDVHDRTool() {
             </p>
           </div>
         </div>
-        <ToolSettings toolPaths={toolPaths} onSave={setToolPaths} />
+        <ToolSettings
+          toolPaths={toolPaths}
+          onSave={setToolPaths}
+          parallelTasks={config.parallelTasks}
+          onParallelTasksChange={(v) => setConfig(prev => ({ ...prev, parallelTasks: v }))}
+        />
       </div>
 
       {}
@@ -689,27 +704,6 @@ export function HybridDVHDRTool() {
                       : 'Check Updates'}
               </Button>
             </div>
-
-            {derivedMode === 'batch' && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm">Parallel Processes</Label>
-                  <span className="text-sm font-mono text-primary">{config.parallelTasks}</span>
-                </div>
-                <Slider
-                  value={[config.parallelTasks]}
-                  onValueChange={([v]) => setConfig(prev => ({ ...prev, parallelTasks: v }))}
-                  min={1}
-                  max={8}
-                  step={1}
-                  disabled={isProcessing}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Number of files to process simultaneously
-                </p>
-              </div>
-            )}
 
             <div className="flex items-center justify-between">
               <div>
