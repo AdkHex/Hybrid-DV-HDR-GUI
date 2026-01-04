@@ -59,11 +59,33 @@ jobs:
       - name: List bundle outputs
         run: Get-ChildItem -Path src-tauri/target/release/bundle -Recurse | Select-Object FullName
 
-      - name: Prepare update feed
+      - name: Generate update feed
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
-          $latest = Get-ChildItem -Path src-tauri/target/release/bundle -Filter latest.json -Recurse | Select-Object -First 1
-          if (-not $latest) { Write-Error "latest.json not found. Ensure updater is enabled and signing keys are set." }
-          Copy-Item $latest.FullName -Destination latest.json -Force
+          $installer = Get-ChildItem -Path src-tauri/target/release/bundle/nsis -Filter "*-setup.exe" -Recurse | Select-Object -First 1
+          if (-not $installer) { Write-Error "NSIS installer not found." }
+          if ($env:TAURI_KEY_PASSWORD) {
+            $signature = (npx tauri signer sign -k "$env:TAURI_PRIVATE_KEY" -p "$env:TAURI_KEY_PASSWORD" "$($installer.FullName)").Trim()
+          } else {
+            $signature = (npx tauri signer sign -k "$env:TAURI_PRIVATE_KEY" "$($installer.FullName)").Trim()
+          }
+          $version = "$env:APP_VERSION"
+          $filename = $installer.Name
+          $url = "https://github.com/AdkHex/Hybrid-DV-HDR-GUI/releases/download/v$version/$filename"
+          $payload = @{
+            version = $version
+            notes = "Auto update"
+            pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = $signature
+                url = $url
+              }
+            }
+          }
+          $payload | ConvertTo-Json -Depth 6 | Out-File -Encoding UTF8 latest.json
 
       - name: Release
         uses: softprops/action-gh-release@v2
