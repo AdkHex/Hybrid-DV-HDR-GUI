@@ -160,10 +160,33 @@ fn resolve_path(app: &AppHandle, path: &str) -> PathBuf {
             return candidate;
         }
     }
+    let project_candidate = PathBuf::from("src-tauri").join(path);
+    if project_candidate.exists() {
+        return project_candidate;
+    }
     if let Ok(current_dir) = std::env::current_dir() {
         return current_dir.join(path);
     }
     path_buf
+}
+
+fn prepare_tool(app: &AppHandle, path: &str) -> Result<PathBuf, String> {
+    let resolved = resolve_path(app, path);
+    if !resolved.exists() {
+        return Err(format!("Tool not found: {}", resolved.display()));
+    }
+    let file_name = resolved
+        .file_name()
+        .ok_or_else(|| format!("Invalid tool path: {}", resolved.display()))?;
+    let cache_dir = std::env::temp_dir().join("hybrid-dv-hdr-tools");
+    fs::create_dir_all(&cache_dir)
+        .map_err(|e| format!("Cannot create tool cache: {}", e))?;
+    let cached = cache_dir.join(file_name);
+    if !cached.exists() {
+        fs::copy(&resolved, &cached)
+            .map_err(|e| format!("Cannot cache tool {}: {}", resolved.display(), e))?;
+    }
+    Ok(cached)
 }
 
 fn normalize_output_path(default_output: &str, output_path: &str) -> PathBuf {
@@ -406,9 +429,9 @@ fn run_pipeline(
     ensure_readable(input_dv)?;
     ensure_writable(output_path)?;
 
-    let dovi_tool = resolve_path(app, &tool_paths.dovi_tool);
-    let mkvmerge = resolve_path(app, &tool_paths.mkvmerge);
-    let mkvextract = resolve_path(app, &tool_paths.mkvextract);
+    let dovi_tool = prepare_tool(app, &tool_paths.dovi_tool)?;
+    let mkvmerge = prepare_tool(app, &tool_paths.mkvmerge)?;
+    let mkvextract = prepare_tool(app, &tool_paths.mkvextract)?;
 
     let output_base = output_path.to_string_lossy().to_string();
     let audio_loc = format!("{}_audiosubs.mka", output_base);

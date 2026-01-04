@@ -270,7 +270,13 @@ export function HybridDVHDRTool() {
         const message = error instanceof Error ? error.message : String(error);
         setUpdateState('idle');
         setUpdateVersion(null);
-        if (message.includes('valid release JSON') || message.includes('release JSON')) {
+        const normalized = message.toLowerCase();
+        if (
+          normalized.includes('release json') ||
+          normalized.includes('valid release json') ||
+          normalized.includes('404') ||
+          normalized.includes('not found')
+        ) {
           addLog('info', 'No update feed found yet. Publish a release to enable updates.');
         } else {
           addLog('error', `Update check failed: ${message}`);
