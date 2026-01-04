@@ -46,6 +46,12 @@ jobs:
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: npm run tauri:build
 
+      - name: Prepare update feed
+        run: |
+          $latest = Get-ChildItem -Path src-tauri/target/release/bundle -Filter latest.json -Recurse | Select-Object -First 1
+          if (-not $latest) { Write-Error "latest.json not found. Ensure updater is enabled and signing keys are set." }
+          Copy-Item $latest.FullName -Destination latest.json -Force
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
@@ -55,8 +61,8 @@ jobs:
           prerelease: false
           draft: false
           files: |
+            latest.json
             src-tauri/target/release/bundle/**/*.msi
             src-tauri/target/release/bundle/**/*.exe
             src-tauri/target/release/bundle/**/*.zip
             src-tauri/target/release/bundle/**/*.sig
-            src-tauri/target/release/bundle/**/latest.json
