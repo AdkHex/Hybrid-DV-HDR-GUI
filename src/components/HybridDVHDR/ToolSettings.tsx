@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Settings, Folder, Save, RotateCcw, Wrench } from 'lucide-react';
 import { isTauri, openDialog } from '@/lib/tauri';
 import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -17,6 +18,8 @@ import type { ToolPaths } from './types';
 interface ToolSettingsProps {
   toolPaths: ToolPaths;
   onSave: (paths: ToolPaths) => void;
+  parallelTasks: number;
+  onParallelTasksChange: (value: number) => void;
 }
 
 const defaultPaths: ToolPaths = {
@@ -35,7 +38,12 @@ const toolLabels = [
   { key: 'defaultOutput' as const, label: 'Default Output Folder', icon: '📁' },
 ];
 
-export function ToolSettings({ toolPaths, onSave }: ToolSettingsProps) {
+export function ToolSettings({
+  toolPaths,
+  onSave,
+  parallelTasks,
+  onParallelTasksChange,
+}: ToolSettingsProps) {
   const [open, setOpen] = useState(false);
   const [paths, setPaths] = useState<ToolPaths>(toolPaths);
 
@@ -114,6 +122,24 @@ export function ToolSettings({ toolPaths, onSave }: ToolSettingsProps) {
               </div>
             </div>
           ))}
+
+          <div className="space-y-2 pt-2 border-t border-border">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Parallel Processes</Label>
+              <span className="text-sm font-mono text-primary">{parallelTasks}</span>
+            </div>
+            <Slider
+              value={[parallelTasks]}
+              onValueChange={([v]) => onParallelTasksChange(v)}
+              min={1}
+              max={15}
+              step={1}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              Number of files to process simultaneously
+            </p>
+          </div>
         </div>
 
         <DialogFooter className="gap-2">

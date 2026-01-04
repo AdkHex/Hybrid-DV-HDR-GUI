@@ -590,6 +590,7 @@ fn process_queue_item(
     tool_paths: ToolPaths,
     item: QueueItem,
     keep_temp_files: bool,
+    parallel_tasks: usize,
 ) -> Result<(), String> {
     emit_log(
         &app_handle,
@@ -668,7 +669,12 @@ fn process_queue_item(
             ));
         }
 
-        let worker_count = total_files.min(15);
+        let requested_workers = if parallel_tasks == 0 {
+            total_files
+        } else {
+            parallel_tasks
+        };
+        let worker_count = total_files.min(requested_workers).min(15);
         let task_queue = Arc::new(Mutex::new(std::collections::VecDeque::from(tasks)));
         let tracker = Arc::new(Mutex::new(vec![0u8; total_files]));
         let active_workers = Arc::new(Mutex::new(0usize));
@@ -840,6 +846,7 @@ async fn start_processing(
                         tool_paths,
                         item,
                         keep_temp,
+                        request.parallel_tasks,
                     );
 
                     if let Err(err) = result {
