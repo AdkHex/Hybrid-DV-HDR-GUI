@@ -1,0 +1,52 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:8080",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "Hybrid DV HDR Tool",
+    "version": "1.0.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "dialog": {
+        "open": true,
+        "save": true
+      }
+    },
+    "windows": [
+      {
+        "title": "Hybrid DV HDR Tool",
+        "width": 1600,
+        "height": 1000,
+        "minWidth": 1300,
+        "minHeight": 820,
+        "resizable": true
+      }
+    ],
+    "bundle": {
+      "active": true,
+      "targets": ["msi", "nsis"],
+      "identifier": "com.Ionicboy.hybrid-dv-hdr",
+      "icon": [
+        "icons/icon.ico"
+      ],
+      "resources": [
+        "bin/dovi_tool.exe",
+        "bin/mkvmerge.exe",
+        "bin/mkvextract.exe",
+        "bin/ffmpeg.exe"
+      ]
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/AdkHex/Hybrid-DV-HDR-GUI/releases/latest/download/latest.json"
+      ],
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlFQTI2RTMxRkJFOTAzNApSV1Ewa0w0ZjR5YnFDZnd4amoxdXFrc0RCSjJtWGRCYW0ya3h5WnAzOGlqVklQam5hT0hzeHhpWgo="
+    }
+  }
+}

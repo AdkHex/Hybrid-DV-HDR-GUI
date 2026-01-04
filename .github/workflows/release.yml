@@ -1,0 +1,62 @@
+name: release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install WiX Toolset
+        run: choco install wixtoolset -y
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set app version
+        env:
+          APP_VERSION: 1.${{ github.run_number }}.0
+        run: |
+          $minor = [int]${{ github.run_number }} - 1
+          if ($minor -lt 0) { $minor = 0 }
+          $env:APP_VERSION = "1.$minor.0"
+          $env:APP_VERSION_LABEL = "1.$minor"
+          node -e 'const fs=require("fs");const conf=JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json","utf8"));conf.package.version=process.env.APP_VERSION;fs.writeFileSync("src-tauri/tauri.conf.json",JSON.stringify(conf,null,2));const cargo=fs.readFileSync("src-tauri/Cargo.toml","utf8").replace(/version = ".*"/, `version = "${process.env.APP_VERSION}"`);fs.writeFileSync("src-tauri/Cargo.toml", cargo);'
+          Add-Content $env:GITHUB_ENV "APP_VERSION=$env:APP_VERSION"
+          Add-Content $env:GITHUB_ENV "APP_VERSION_LABEL=$env:APP_VERSION_LABEL"
+
+      - name: Build app
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: npm run tauri:build
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.APP_VERSION }}
+          name: Auto-DV-HDR-Setup.v${{ env.APP_VERSION_LABEL }}
+          generate_release_notes: true
+          prerelease: false
+          draft: false
+          files: |
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/release/bundle/**/*.zip
+            src-tauri/target/release/bundle/**/*.sig
+            src-tauri/target/release/bundle/**/latest.json
