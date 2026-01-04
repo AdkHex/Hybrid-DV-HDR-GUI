@@ -31,6 +31,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify signing secrets
+        run: |
+          if (-not $env:TAURI_PRIVATE_KEY) { Write-Error "TAURI_PRIVATE_KEY is missing from GitHub Secrets." }
+          if ($env:TAURI_PRIVATE_KEY) { Write-Output "TAURI_PRIVATE_KEY length: $($env:TAURI_PRIVATE_KEY.Length)" }
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+
       - name: Set app version
         env:
           APP_VERSION: 1.${{ github.run_number }}.0

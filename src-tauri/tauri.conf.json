@@ -23,7 +23,13 @@
         "height": 1000,
         "minWidth": 1300,
         "minHeight": 820,
-        "resizable": true
+        "resizable": true,
+        "center": true,
+        "decorations": false,
+        "alwaysOnTop": false,
+        "transparent": true,
+        "shadow": true,
+        "dragDropEnabled": true
       }
     ],
     "bundle": {
