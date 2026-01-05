@@ -5,8 +5,7 @@ import {
   Settings2, 
   Trash2,
   Plus,
-  Layers,
-  RefreshCw
+  Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -22,10 +21,7 @@ import {
   invokeTauri, 
   listenTauri, 
   openDialog, 
-  saveDialog,
-  checkForUpdates,
-  installUpdate,
-  relaunchApp
+  saveDialog
 } from '@/lib/tauri';
 import type {
   ProcessingConfig, 
@@ -86,8 +82,6 @@ export function HybridDVHDRTool() {
   const queueMetaRef = useRef(new Map<string, { start: number; lastProgress: number }>());
   const fileMetaRef = useRef(new Map<string, { start: number; lastProgress: number }>());
   const [selectedQueueIds, setSelectedQueueIds] = useState<Set<string>>(new Set());
-  const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'available' | 'installing' | 'error'>('idle');
-  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
 
   const addLog = useCallback((type: LogEntry['type'], message: string) => {
     const entry: LogEntry = {
@@ -233,67 +227,6 @@ export function HybridDVHDRTool() {
     addLog('info', `Added to queue: ${newFile.outputFile}`);
   }, [config, addLog, derivedMode, toolPaths.defaultOutput]);
 
-  const handleCheckUpdates = useCallback(
-    async (auto = false) => {
-      if (!isTauri()) {
-        if (!auto) {
-          addLog('warning', 'Update checks are available in the desktop app only.');
-        }
-        return;
-      }
-
-      try {
-        setUpdateState('checking');
-        const update = await checkForUpdates();
-        if (update?.shouldUpdate) {
-          const version = update.manifest?.version || update.version || 'newer version';
-          setUpdateVersion(version);
-          setUpdateState('available');
-          const shouldInstall = window.confirm(`Update ${version} is available. Install now?`);
-          if (shouldInstall) {
-            setUpdateState('installing');
-            addLog('info', `Installing update ${version}...`);
-            await installUpdate();
-            await relaunchApp();
-          } else {
-            addLog('info', `Update ${version} available. You can install it anytime.`);
-          }
-        } else {
-          setUpdateState('idle');
-          setUpdateVersion(null);
-          if (!auto) {
-            addLog('info', 'You are already on the latest version.');
-          }
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        setUpdateState('idle');
-        setUpdateVersion(null);
-        const normalized = message.toLowerCase();
-        if (
-          normalized.includes('release json') ||
-          normalized.includes('valid release json') ||
-          normalized.includes('404') ||
-          normalized.includes('not found')
-        ) {
-          if (!auto) {
-            addLog('info', 'No update feed found yet. Publish a release to enable updates.');
-          }
-        } else {
-          addLog('error', `Update check failed: ${message}`);
-        }
-      }
-    },
-    [addLog],
-  );
-
-  useEffect(() => {
-    if (!isTauri()) return;
-    const timer = setTimeout(() => {
-      handleCheckUpdates(true);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [handleCheckUpdates]);
 
 
   const browseFile = useCallback(
@@ -679,31 +612,6 @@ export function HybridDVHDRTool() {
 
         {settingsOpen && (
           <div className="p-4 border-t border-border space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm">App Updates</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Check for new releases on GitHub
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleCheckUpdates(false)}
-                disabled={updateState === 'checking' || updateState === 'installing'}
-                className="gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${updateState === 'checking' ? 'animate-spin' : ''}`} />
-                {updateState === 'available'
-                  ? `Update ${updateVersion ?? ''}`
-                  : updateState === 'checking'
-                    ? 'Checking...'
-                    : updateState === 'installing'
-                      ? 'Updating...'
-                      : 'Check Updates'}
-              </Button>
-            </div>
-
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-sm">Keep Temporary Files</Label>

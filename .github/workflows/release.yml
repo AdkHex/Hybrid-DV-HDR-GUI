@@ -31,13 +31,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify signing secrets
-        run: |
-          if (-not $env:TAURI_PRIVATE_KEY) { Write-Error "TAURI_PRIVATE_KEY is missing from GitHub Secrets." }
-          if ($env:TAURI_PRIVATE_KEY) { Write-Output "TAURI_PRIVATE_KEY length: $($env:TAURI_PRIVATE_KEY.Length)" }
-        env:
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-
       - name: Set app version
         env:
           APP_VERSION: 1.${{ github.run_number }}.0
@@ -59,36 +52,6 @@ jobs:
       - name: List bundle outputs
         run: Get-ChildItem -Path src-tauri/target/release/bundle -Recurse | Select-Object FullName
 
-      - name: Generate update feed
-        env:
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: |
-          $installer = Get-ChildItem -Path src-tauri/target/release/bundle/nsis -Filter "*-setup.exe" -Recurse | Select-Object -First 1
-          if (-not $installer) { Write-Error "NSIS installer not found." }
-          if ($env:TAURI_KEY_PASSWORD) {
-            $raw = npx tauri signer sign -k "$env:TAURI_PRIVATE_KEY" -p "$env:TAURI_KEY_PASSWORD" "$($installer.FullName)"
-          } else {
-            $raw = npx tauri signer sign -k "$env:TAURI_PRIVATE_KEY" "$($installer.FullName)"
-          }
-          $signature = ($raw | Select-Object -Last 1).ToString().Trim()
-          if (-not $signature) { Write-Error "Signature generation failed." }
-          $version = "$env:APP_VERSION"
-          $filename = $installer.Name
-          $url = "https://github.com/AdkHex/Hybrid-DV-HDR-GUI/releases/download/v$version/$filename"
-          $payload = @{
-            version = $version
-            notes = "Auto update"
-            pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-            platforms = @{
-              "windows-x86_64" = @{
-                signature = $signature
-                url = $url
-              }
-            }
-          }
-          $payload | ConvertTo-Json -Depth 6 | Out-File -Encoding UTF8 latest.json
-
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
@@ -98,7 +61,6 @@ jobs:
           prerelease: false
           draft: false
           files: |
-            latest.json
             src-tauri/target/release/bundle/**/*.msi
             src-tauri/target/release/bundle/**/*.exe
             src-tauri/target/release/bundle/**/*.zip
