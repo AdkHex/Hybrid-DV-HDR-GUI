@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Settings, Folder, Save, RotateCcw, Wrench } from 'lucide-react';
-import { isTauri, openDialog } from '@/lib/tauri';
+import { isTauri, invokeTauri, openDialog } from '@/lib/tauri';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { useToast } from '@/components/ui/use-toast';
 import type { ToolPaths } from './types';
 
 interface ToolSettingsProps {
@@ -46,6 +47,8 @@ export function ToolSettings({
 }: ToolSettingsProps) {
   const [open, setOpen] = useState(false);
   const [paths, setPaths] = useState<ToolPaths>(toolPaths);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const { toast } = useToast();
 
   const handleSave = () => {
     onSave(paths);
@@ -75,6 +78,37 @@ export function ToolSettings({
 
     if (typeof selected === 'string') {
       updatePath(key, selected);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!isTauri()) {
+      toast({
+        title: 'Downloads unavailable',
+        description: 'Pre-requisites can only be downloaded from the desktop app.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsDownloading(true);
+    try {
+      const downloaded = await invokeTauri<ToolPaths>('download_prerequisites');
+      setPaths(downloaded);
+      onSave(downloaded);
+      toast({
+        title: 'Downloads complete',
+        description: 'Tool paths were updated to the downloaded binaries.',
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast({
+        title: 'Download failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -143,6 +177,9 @@ export function ToolSettings({
         </div>
 
         <DialogFooter className="gap-2">
+          <Button variant="secondary" onClick={handleDownload} disabled={isDownloading}>
+            {isDownloading ? 'Downloading...' : 'Download Pre-requisites'}
+          </Button>
           <Button variant="outline" onClick={handleReset}>
             <RotateCcw className="h-4 w-4 mr-2" />
             Reset
