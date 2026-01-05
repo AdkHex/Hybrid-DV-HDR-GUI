@@ -254,8 +254,20 @@ export function ToolSettings({
     };
   }, [downloadingKey, isDownloading, onSave]);
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && (isDownloading || downloadingKey)) {
+      toast({
+        title: 'Downloads in progress',
+        description: 'Please wait for downloads to complete before closing Tool Configuration.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setOpen(nextOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="icon" title="Tool Settings">
           <Wrench className="h-4 w-4" />
