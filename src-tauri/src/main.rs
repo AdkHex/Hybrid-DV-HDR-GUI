@@ -427,26 +427,46 @@ fn run_pipeline(
 ) -> Result<(), String> {
     ensure_readable(input_hdr)?;
     ensure_readable(input_dv)?;
-    ensure_writable(output_path)?;
 
     let dovi_tool = prepare_tool(app, &tool_paths.dovi_tool)?;
     let mkvmerge = prepare_tool(app, &tool_paths.mkvmerge)?;
     let mkvextract = prepare_tool(app, &tool_paths.mkvextract)?;
 
-    let output_base = output_path.to_string_lossy().to_string();
+    let desired_output = output_path.to_path_buf();
+    let mut work_output = desired_output.clone();
+    let mut using_temp_output = false;
+
+    if let Err(err) = ensure_writable(&desired_output) {
+        let temp_dir = std::env::temp_dir()
+            .join("hybrid-dv-hdr-output")
+            .join(queue_id.unwrap_or("single"));
+        fs::create_dir_all(&temp_dir)
+            .map_err(|e| format!("Cannot create temp output directory: {}", e))?;
+        let filename = desired_output
+            .file_name()
+            .ok_or_else(|| format!("Invalid output path: {}", desired_output.display()))?;
+        work_output = temp_dir.join(filename);
+        using_temp_output = true;
+        emit_log(
+            app,
+            "warning",
+            format!(
+                "Output folder not writable ({}). Using temp output: {}",
+                err,
+                work_output.display()
+            ),
+        );
+        ensure_writable(&work_output)?;
+    }
+
+    let output_base = work_output.to_string_lossy().to_string();
     let audio_loc = format!("{}_audiosubs.mka", output_base);
     let hevc = format!("{}_dv.hevc", output_base);
     let hdr10 = format!("{}_hdr10.hevc", output_base);
     let dv_hdr = format!("{}_dv_hdr.hevc", output_base);
     let rpu_bin = format!("{}_rpu.bin", output_base);
 
-    if let Some(parent) = output_path.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-        }
-    }
-
-    emit_log(app, "info", format!("Processing: {}", output_path.display()));
+    emit_log(app, "info", format!("Processing: {}", desired_output.display()));
 
     let queue_ctx = queue_id.map(|id| QueueContext {
         id: id.to_string(),
@@ -530,7 +550,7 @@ fn run_pipeline(
         .arg("en")
         .arg("--no-date")
         .arg("--output")
-        .arg(output_path)
+        .arg(&work_output)
         .arg(&dv_hdr)
         .arg(&audio_loc);
 
@@ -540,7 +560,7 @@ fn run_pipeline(
         (2, cmd2, PathBuf::from(&hevc), PathBuf::from(&rpu_bin), false),
         (3, cmd3, input_hdr.to_path_buf(), PathBuf::from(&hdr10), true),
         (4, cmd4, PathBuf::from(&hdr10), PathBuf::from(&dv_hdr), false),
-        (5, cmd5, PathBuf::from(&dv_hdr), output_path.to_path_buf(), true),
+        (5, cmd5, PathBuf::from(&dv_hdr), work_output.to_path_buf(), true),
     ];
 
     for (index, command, input, output, emit_progress) in steps {
@@ -565,6 +585,29 @@ fn run_pipeline(
             let _ = fs::remove_file(file);
         }
         emit_log(app, "info", "Temporary files cleaned up.");
+    }
+
+    if using_temp_output && work_output != desired_output {
+        if let Some(parent) = desired_output.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        match fs::rename(&work_output, &desired_output) {
+            Ok(_) => emit_log(
+                app,
+                "info",
+                format!("Moved output to {}", desired_output.display()),
+            ),
+            Err(err) => emit_log(
+                app,
+                "error",
+                format!(
+                    "Could not move output to {} (saved at {}): {}",
+                    desired_output.display(),
+                    work_output.display(),
+                    err
+                ),
+            ),
+        }
     }
 
     if let Some(ctx) = &queue_ctx {

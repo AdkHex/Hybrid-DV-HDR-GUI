@@ -67,10 +67,12 @@ jobs:
           $installer = Get-ChildItem -Path src-tauri/target/release/bundle/nsis -Filter "*-setup.exe" -Recurse | Select-Object -First 1
           if (-not $installer) { Write-Error "NSIS installer not found." }
           if ($env:TAURI_KEY_PASSWORD) {
-            $signature = (npx tauri signer sign -k "$env:TAURI_PRIVATE_KEY" -p "$env:TAURI_KEY_PASSWORD" "$($installer.FullName)").Trim()
+            $raw = npx tauri signer sign -k "$env:TAURI_PRIVATE_KEY" -p "$env:TAURI_KEY_PASSWORD" "$($installer.FullName)"
           } else {
-            $signature = (npx tauri signer sign -k "$env:TAURI_PRIVATE_KEY" "$($installer.FullName)").Trim()
+            $raw = npx tauri signer sign -k "$env:TAURI_PRIVATE_KEY" "$($installer.FullName)"
           }
+          $signature = ($raw | Select-Object -Last 1).ToString().Trim()
+          if (-not $signature) { Write-Error "Signature generation failed." }
           $version = "$env:APP_VERSION"
           $filename = $installer.Name
           $url = "https://github.com/AdkHex/Hybrid-DV-HDR-GUI/releases/download/v$version/$filename"
