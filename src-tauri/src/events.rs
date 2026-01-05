@@ -1,4 +1,4 @@
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use crate::types::{FilePayload, LogPayload, QueuePayload, StatusPayload, StepPayload};
 

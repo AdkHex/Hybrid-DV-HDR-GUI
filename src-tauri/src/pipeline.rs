@@ -190,6 +190,10 @@ fn should_stage_input(path: &Path) -> bool {
             }
         }
     }
+    #[cfg(not(windows))]
+    {
+        let _ = path;
+    }
     false
 }
 
