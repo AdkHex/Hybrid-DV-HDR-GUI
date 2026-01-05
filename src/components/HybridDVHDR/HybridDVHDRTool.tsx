@@ -2,14 +2,11 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { 
   Play, 
   Square, 
-  Settings2, 
   Trash2,
   Plus,
   Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { FileInput } from './FileInput';
 import { ProcessingSteps } from './ProcessingSteps';
@@ -126,7 +123,6 @@ export function HybridDVHDRTool() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [queue, setQueue] = useState<QueueFile[]>([]);
   const [fileProgress, setFileProgress] = useState<FileProgressEntry[]>([]);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const queueMetaRef = useRef(new Map<string, { start: number; lastProgress: number }>());
   const fileMetaRef = useRef(new Map<string, { start: number; lastProgress: number }>());
   const [selectedQueueIds, setSelectedQueueIds] = useState<Set<string>>(new Set());
@@ -551,6 +547,8 @@ export function HybridDVHDRTool() {
           onSave={setToolPaths}
           parallelTasks={config.parallelTasks}
           onParallelTasksChange={(v) => setConfig(prev => ({ ...prev, parallelTasks: v }))}
+          keepTempFiles={config.keepTempFiles}
+          onKeepTempFilesChange={(v) => setConfig(prev => ({ ...prev, keepTempFiles: v }))}
         />
       </div>
 
@@ -672,42 +670,6 @@ export function HybridDVHDRTool() {
         </Button>
       </div>
 
-      {}
-      <div className="mb-6 rounded-lg border border-border bg-card overflow-hidden">
-        <button
-          type="button"
-          className="w-full flex items-center justify-between px-4 py-3"
-          onClick={() => setSettingsOpen(prev => !prev)}
-        >
-          <div className="flex items-center gap-2">
-            <Settings2 className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Settings</span>
-          </div>
-          <span className="text-xs text-muted-foreground">
-            {settingsOpen ? 'Hide' : 'Show'}
-          </span>
-        </button>
-
-        {settingsOpen && (
-          <div className="p-4 border-t border-border space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm">Keep Temporary Files</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Preserve intermediate files after processing
-                </p>
-              </div>
-              <Switch
-                checked={config.keepTempFiles}
-                onCheckedChange={(v) => setConfig(prev => ({ ...prev, keepTempFiles: v }))}
-                disabled={isProcessing}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {}
       {derivedMode === 'single' && (status === 'processing' || status === 'completed') && (
         <div className="mb-6">
           <ProcessingSteps steps={steps} />

@@ -4,6 +4,7 @@ import { isTauri, invokeTauri, listenTauri, openDialog } from '@/lib/tauri';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -22,6 +23,8 @@ interface ToolSettingsProps {
   onSave: (paths: ToolPaths) => void;
   parallelTasks: number;
   onParallelTasksChange: (value: number) => void;
+  keepTempFiles: boolean;
+  onKeepTempFilesChange: (value: boolean) => void;
 }
 
 const defaultPaths: ToolPaths = {
@@ -47,6 +50,8 @@ export function ToolSettings({
   onSave,
   parallelTasks,
   onParallelTasksChange,
+  keepTempFiles,
+  onKeepTempFilesChange,
 }: ToolSettingsProps) {
   const [open, setOpen] = useState(false);
   const [paths, setPaths] = useState<ToolPaths>(toolPaths);
@@ -287,110 +292,134 @@ export function ToolSettings({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <p className="text-sm text-muted-foreground">
-            Configure paths to required tools. Relative paths are resolved from the application directory.
-          </p>
+        <div className="space-y-6 py-4">
+          <section className="space-y-3">
+            <div className="flex  items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold">Tool Paths</h3>
+                <p className="text-xs text-muted-foreground">
+                  Configure paths to required tools.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button variant="secondary" onClick={handleDownload} disabled={isDownloading}>
+                  {isDownloading ? 'Downloading...' : 'Download Pre-requisites'}
+                </Button>
+                {downloadStatus && (
+                  <p className="text-xs text-muted-foreground">{downloadStatus}</p>
+                )}
+              </div>
+            </div>
 
-          {toolLabels.map(({ key, label, icon, downloadable }) => (
-            <div key={key} className="space-y-1.5">
-              <Label className="text-sm flex items-center gap-2">
-                <span>{icon}</span>
-                {label}
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  value={paths[key]}
-                  onChange={(e) => updatePath(key, e.target.value)}
-                  placeholder={defaultPaths[key]}
-                  className="bg-muted border-border font-mono text-sm"
-                />
-                {downloadable && (
+            {toolLabels.map(({ key, label, icon, downloadable }) => (
+              <div key={key} className="space-y-1.5">
+                <Label className="text-sm flex items-center gap-2">
+                  <span>{icon}</span>
+                  {label}
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={paths[key]}
+                    onChange={(e) => updatePath(key, e.target.value)}
+                    placeholder={defaultPaths[key]}
+                    className="bg-muted border-border font-mono text-sm"
+                  />
+                  {downloadable && (
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={() => handleDownloadTool(key)}
+                      disabled={isDownloading || downloadingKey === key}
+                      title={`Download ${label}`}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="secondary"
                     size="icon"
                     className="shrink-0"
-                    onClick={() => handleDownloadTool(key)}
-                    disabled={isDownloading || downloadingKey === key}
-                    title={`Download ${label}`}
+                    onClick={() => handleBrowse(key)}
                   >
-                    <Download className="h-4 w-4" />
+                    <Folder className="h-4 w-4" />
                   </Button>
-                )}
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={() => handleBrowse(key)}
-                >
-                  <Folder className="h-4 w-4" />
-                </Button>
-              </div>
-              {downloadable && downloadProgress[key]?.stage && (
-                <div className="text-xs text-muted-foreground flex items-center gap-2">
-                  <span>
-                    {downloadProgress[key]?.stage === 'starting'
-                      ? `Preparing ${label}...`
-                      : downloadProgress[key]?.stage === 'downloading'
-                        ? `Downloading ${label}`
-                        : downloadProgress[key]?.stage === 'installed'
-                          ? `Updated path for ${label}`
-                          : `Downloaded ${label}`}
-                  </span>
-                  {downloadProgress[key]?.stage === 'downloading' &&
-                    typeof downloadProgress[key]?.percent === 'number' && (
-                    <span>{downloadProgress[key]?.percent}%</span>
-                  )}
-                  {downloadProgress[key]?.stage === 'downloading' &&
-                    downloadProgress[key]?.bytesReceived !== undefined && (
-                    <span className="font-mono">
-                      {formatBytes(downloadProgress[key]?.bytesReceived)}
-                      {downloadProgress[key]?.totalBytes
-                        ? ` / ${formatBytes(downloadProgress[key]?.totalBytes)}`
-                        : ''}
-                    </span>
-                  )}
                 </div>
-              )}
-              {downloadable &&
-                progressVisible[key] &&
-                typeof downloadProgress[key]?.percent === 'number' && (
-                <Progress value={downloadProgress[key]?.percent} className="h-2" />
-              )}
-            </div>
-          ))}
+                {downloadable && downloadProgress[key]?.stage && (
+                  <div className="text-xs text-muted-foreground flex items-center gap-2">
+                    <span>
+                      {downloadProgress[key]?.stage === 'starting'
+                        ? `Preparing ${label}...`
+                        : downloadProgress[key]?.stage === 'downloading'
+                          ? `Downloading ${label}`
+                          : downloadProgress[key]?.stage === 'installed'
+                            ? `Updated path for ${label}`
+                            : `Downloaded ${label}`}
+                    </span>
+                    {downloadProgress[key]?.stage === 'downloading' &&
+                      typeof downloadProgress[key]?.percent === 'number' && (
+                      <span>{downloadProgress[key]?.percent}%</span>
+                    )}
+                    {downloadProgress[key]?.stage === 'downloading' &&
+                      downloadProgress[key]?.bytesReceived !== undefined && (
+                      <span className="font-mono">
+                        {formatBytes(downloadProgress[key]?.bytesReceived)}
+                        {downloadProgress[key]?.totalBytes
+                          ? ` / ${formatBytes(downloadProgress[key]?.totalBytes)}`
+                          : ''}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {downloadable &&
+                  progressVisible[key] &&
+                  typeof downloadProgress[key]?.percent === 'number' && (
+                  <Progress value={downloadProgress[key]?.percent} className="h-2" />
+                )}
+              </div>
+            ))}
+          </section>
 
-          <div className="space-y-2 pt-2 border-t border-border">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm">Parallel Processes</Label>
-              <span className="text-sm font-mono text-primary">{parallelTasks}</span>
+          <section className="space-y-3 border-t border-border pt-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Parallel Processes</Label>
+                <span className="text-sm font-mono text-primary">{parallelTasks}</span>
+              </div>
+              <Slider
+                value={[parallelTasks]}
+                onValueChange={([v]) => onParallelTasksChange(v)}
+                min={1}
+                max={15}
+                step={1}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Number of files to process simultaneously.
+              </p>
             </div>
-            <Slider
-              value={[parallelTasks]}
-              onValueChange={([v]) => onParallelTasksChange(v)}
-              min={1}
-              max={15}
-              step={1}
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              Number of files to process simultaneously
-            </p>
-          </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm">Keep Temporary Files</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Preserve intermediate files after processing.
+                </p>
+              </div>
+              <Switch
+                checked={keepTempFiles}
+                onCheckedChange={onKeepTempFilesChange}
+                disabled={isDownloading || Boolean(downloadingKey)}
+              />
+            </div>
+          </section>
+
+          {activeDownloadKey && typeof downloadProgress[activeDownloadKey]?.percent === 'number' && (
+            <Progress value={downloadProgress[activeDownloadKey]?.percent} className="h-2 w-64" />
+          )}
         </div>
 
         <DialogFooter className="gap-2">
-          <div className="mr-auto space-y-2">
-            {downloadStatus && (
-              <p className="text-xs text-muted-foreground">{downloadStatus}</p>
-            )}
-            {activeDownloadKey && typeof downloadProgress[activeDownloadKey]?.percent === 'number' && (
-              <Progress value={downloadProgress[activeDownloadKey]?.percent} className="h-2 w-48" />
-            )}
-          </div>
-          <Button variant="secondary" onClick={handleDownload} disabled={isDownloading}>
-            {isDownloading ? 'Downloading...' : 'Download Pre-requisites'}
-          </Button>
           <Button variant="outline" onClick={handleReset}>
             <RotateCcw className="h-4 w-4 mr-2" />
             Reset
