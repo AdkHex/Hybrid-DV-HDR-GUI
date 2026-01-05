@@ -201,15 +201,6 @@ export function HybridDVHDRTool() {
     };
   }, [addLog]);
 
-  useEffect(() => {
-    if (!isTauri()) return;
-    const timer = setTimeout(() => {
-      handleCheckUpdates(true);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [handleCheckUpdates]);
-
-
   const derivedMode: ProcessingMode =
     pathKinds.hdr === 'folder' && pathKinds.dv === 'folder' ? 'batch' : 'single';
 
@@ -295,6 +286,14 @@ export function HybridDVHDRTool() {
     },
     [addLog],
   );
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    const timer = setTimeout(() => {
+      handleCheckUpdates(true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [handleCheckUpdates]);
 
 
   const browseFile = useCallback(
