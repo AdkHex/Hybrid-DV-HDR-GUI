@@ -58,21 +58,69 @@ const defaultToolPaths: ToolPaths = {
 };
 
 export function HybridDVHDRTool() {
+  const toolPathsStorageKey = 'hybrid-dv-hdr:toolPaths';
+  const configStorageKey = 'hybrid-dv-hdr:config';
   const [pathKinds, setPathKinds] = useState<{ hdr: 'file' | 'folder' | 'unknown'; dv: 'file' | 'folder' | 'unknown'; output: 'file' | 'folder' | 'unknown' }>({
     hdr: 'unknown',
     dv: 'unknown',
     output: 'unknown',
   });
-  const [config, setConfig] = useState<ProcessingConfig>({
-    hdrPath: '',
-    dvPath: '',
-    outputPath: '',
-    mode: 'single',
-    parallelTasks: 8,
-    keepTempFiles: false,
+  const [config, setConfig] = useState<ProcessingConfig>(() => {
+    if (typeof window === 'undefined') {
+      return {
+        hdrPath: '',
+        dvPath: '',
+        outputPath: '',
+        mode: 'single',
+        parallelTasks: 8,
+        keepTempFiles: false,
+      };
+    }
+    try {
+      const stored = window.localStorage.getItem(configStorageKey);
+      if (!stored) {
+        return {
+          hdrPath: '',
+          dvPath: '',
+          outputPath: '',
+          mode: 'single',
+          parallelTasks: 8,
+          keepTempFiles: false,
+        };
+      }
+      const parsed = JSON.parse(stored) as Partial<ProcessingConfig>;
+      return {
+        hdrPath: '',
+        dvPath: '',
+        outputPath: '',
+        mode: 'single',
+        parallelTasks: 8,
+        keepTempFiles: false,
+        ...parsed,
+      };
+    } catch {
+      return {
+        hdrPath: '',
+        dvPath: '',
+        outputPath: '',
+        mode: 'single',
+        parallelTasks: 8,
+        keepTempFiles: false,
+      };
+    }
   });
   
-  const [toolPaths, setToolPaths] = useState<ToolPaths>(defaultToolPaths);
+  const [toolPaths, setToolPaths] = useState<ToolPaths>(() => {
+    if (typeof window === 'undefined') return defaultToolPaths;
+    try {
+      const stored = window.localStorage.getItem(toolPathsStorageKey);
+      if (!stored) return defaultToolPaths;
+      const parsed = JSON.parse(stored) as Partial<ToolPaths>;
+      return { ...defaultToolPaths, ...parsed };
+    } catch {
+      return defaultToolPaths;
+    }
+  });
   const [status, setStatus] = useState<ProcessingStatus>('idle');
   const [steps, setSteps] = useState<ProcessingStep[]>(defaultSteps);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -82,6 +130,8 @@ export function HybridDVHDRTool() {
   const queueMetaRef = useRef(new Map<string, { start: number; lastProgress: number }>());
   const fileMetaRef = useRef(new Map<string, { start: number; lastProgress: number }>());
   const [selectedQueueIds, setSelectedQueueIds] = useState<Set<string>>(new Set());
+  const configSaveRef = useRef<number | null>(null);
+  const toolPathsSaveRef = useRef<number | null>(null);
 
   const addLog = useCallback((type: LogEntry['type'], message: string) => {
     const entry: LogEntry = {
@@ -194,6 +244,34 @@ export function HybridDVHDRTool() {
       if (unlistenFile) unlistenFile();
     };
   }, [addLog]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (toolPathsSaveRef.current) {
+      window.clearTimeout(toolPathsSaveRef.current);
+    }
+    toolPathsSaveRef.current = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(toolPathsStorageKey, JSON.stringify(toolPaths));
+      } catch {
+        // ignore storage errors
+      }
+    }, 400);
+  }, [toolPaths, toolPathsStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (configSaveRef.current) {
+      window.clearTimeout(configSaveRef.current);
+    }
+    configSaveRef.current = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(configStorageKey, JSON.stringify(config));
+      } catch {
+        // ignore storage errors
+      }
+    }, 400);
+  }, [config, configStorageKey]);
 
   const derivedMode: ProcessingMode =
     pathKinds.hdr === 'folder' && pathKinds.dv === 'folder' ? 'batch' : 'single';

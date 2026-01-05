@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Settings, Folder, Save, RotateCcw, Wrench, Download } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Settings, Folder, RotateCcw, Wrench, Download } from 'lucide-react';
 import { isTauri, invokeTauri, listenTauri, openDialog } from '@/lib/tauri';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -59,11 +59,7 @@ export function ToolSettings({
   const [progressVisible, setProgressVisible] = useState<Record<string, boolean>>({});
   const [activeDownloadKey, setActiveDownloadKey] = useState<keyof ToolPaths | null>(null);
   const { toast } = useToast();
-
-  const handleSave = () => {
-    onSave(paths);
-    setOpen(false);
-  };
+  const hasMountedRef = useRef(false);
 
   const handleReset = () => {
     setPaths(defaultPaths);
@@ -180,6 +176,30 @@ export function ToolSettings({
     }
     return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
   };
+
+  const areToolPathsEqual = (a: ToolPaths, b: ToolPaths) => (
+    a.doviTool === b.doviTool &&
+    a.mkvmerge === b.mkvmerge &&
+    a.mkvextract === b.mkvextract &&
+    a.ffmpeg === b.ffmpeg &&
+    a.defaultOutput === b.defaultOutput
+  );
+
+  useEffect(() => {
+    setPaths(toolPaths);
+  }, [toolPaths]);
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+    if (areToolPathsEqual(paths, toolPaths)) return;
+    const timeout = window.setTimeout(() => {
+      onSave(paths);
+    }, 400);
+    return () => window.clearTimeout(timeout);
+  }, [onSave, paths, toolPaths]);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -356,10 +376,6 @@ export function ToolSettings({
           <Button variant="outline" onClick={handleReset}>
             <RotateCcw className="h-4 w-4 mr-2" />
             Reset
-          </Button>
-          <Button onClick={handleSave}>
-            <Save className="h-4 w-4 mr-2" />
-            Save
           </Button>
         </DialogFooter>
       </DialogContent>
