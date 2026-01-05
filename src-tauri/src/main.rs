@@ -409,6 +409,39 @@ fn run_command(
     result
 }
 
+fn should_stage_input(path: &Path) -> bool {
+    #[cfg(windows)]
+    {
+        use std::path::Component;
+        if let Some(Component::Prefix(prefix)) = path.components().next() {
+            use std::path::Prefix;
+            match prefix.kind() {
+                Prefix::Disk(letter) | Prefix::VerbatimDisk(letter) => {
+                    return letter.to_ascii_uppercase() != b'C';
+                }
+                Prefix::UNC(..) | Prefix::VerbatimUNC(..) => {
+                    return true;
+                }
+                _ => {}
+            }
+        }
+    }
+    false
+}
+
+fn stage_input(path: &Path, work_dir: &Path) -> Result<PathBuf, String> {
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| format!("Invalid input path: {}", path.display()))?;
+    let staged = work_dir.join(file_name);
+    if staged.exists() {
+        return Ok(staged);
+    }
+    fs::copy(path, &staged)
+        .map_err(|e| format!("Failed to stage input {}: {}", path.display(), e))?;
+    Ok(staged)
+}
+
 fn run_pipeline(
     app: &AppHandle,
     state: &ProcessingState,
@@ -431,6 +464,47 @@ fn run_pipeline(
     let dovi_tool = prepare_tool(app, &tool_paths.dovi_tool)?;
     let mkvmerge = prepare_tool(app, &tool_paths.mkvmerge)?;
     let mkvextract = prepare_tool(app, &tool_paths.mkvextract)?;
+
+    let work_dir = std::env::temp_dir()
+        .join("hybrid-dv-hdr-work")
+        .join(queue_id.unwrap_or("single"))
+        .join(format!("file_{}", queue_file_index));
+    fs::create_dir_all(&work_dir).map_err(|e| format!("Cannot create work dir: {}", e))?;
+
+    let mut input_hdr_work = input_hdr.to_path_buf();
+    let mut input_dv_work = input_dv.to_path_buf();
+
+    if should_stage_input(input_hdr) {
+        emit_log(
+            app,
+            "info",
+            format!("Staging HDR input to temp: {}", input_hdr.display()),
+        );
+        match stage_input(input_hdr, &work_dir) {
+            Ok(staged) => input_hdr_work = staged,
+            Err(err) => emit_log(
+                app,
+                "warning",
+                format!("Failed to stage HDR input ({}). Using original path.", err),
+            ),
+        }
+    }
+
+    if should_stage_input(input_dv) {
+        emit_log(
+            app,
+            "info",
+            format!("Staging DV input to temp: {}", input_dv.display()),
+        );
+        match stage_input(input_dv, &work_dir) {
+            Ok(staged) => input_dv_work = staged,
+            Err(err) => emit_log(
+                app,
+                "warning",
+                format!("Failed to stage DV input ({}). Using original path.", err),
+            ),
+        }
+    }
 
     let desired_output = output_path.to_path_buf();
     let mut work_output = desired_output.clone();
@@ -514,10 +588,13 @@ fn run_pipeline(
         .arg("-o")
         .arg(&audio_loc)
         .arg("--no-video")
-        .arg(input_hdr);
+        .arg(&input_hdr_work);
 
     let mut cmd1 = Command::new(&mkvextract);
-    cmd1.arg(input_dv).arg("tracks").arg(format!("0:{}", hevc));
+    cmd1
+        .arg(&input_dv_work)
+        .arg("tracks")
+        .arg(format!("0:{}", hevc));
 
     let mut cmd2 = Command::new(&dovi_tool);
     cmd2
@@ -530,7 +607,7 @@ fn run_pipeline(
 
     let mut cmd3 = Command::new(&mkvextract);
     cmd3
-        .arg(input_hdr)
+        .arg(&input_hdr_work)
         .arg("tracks")
         .arg(format!("0:{}", hdr10));
 
@@ -555,10 +632,10 @@ fn run_pipeline(
         .arg(&audio_loc);
 
     let steps: Vec<(usize, Command, PathBuf, PathBuf, bool)> = vec![
-        (0, cmd0, input_hdr.to_path_buf(), PathBuf::from(&audio_loc), true),
-        (1, cmd1, input_dv.to_path_buf(), PathBuf::from(&hevc), true),
+        (0, cmd0, input_hdr_work.to_path_buf(), PathBuf::from(&audio_loc), true),
+        (1, cmd1, input_dv_work.to_path_buf(), PathBuf::from(&hevc), true),
         (2, cmd2, PathBuf::from(&hevc), PathBuf::from(&rpu_bin), false),
-        (3, cmd3, input_hdr.to_path_buf(), PathBuf::from(&hdr10), true),
+        (3, cmd3, input_hdr_work.to_path_buf(), PathBuf::from(&hdr10), true),
         (4, cmd4, PathBuf::from(&hdr10), PathBuf::from(&dv_hdr), false),
         (5, cmd5, PathBuf::from(&dv_hdr), work_output.to_path_buf(), true),
     ];
@@ -583,6 +660,12 @@ fn run_pipeline(
         let cleanup_files = [audio_loc, hevc, hdr10, dv_hdr, rpu_bin];
         for file in cleanup_files.iter() {
             let _ = fs::remove_file(file);
+        }
+        if input_hdr_work != input_hdr.to_path_buf() {
+            let _ = fs::remove_file(&input_hdr_work);
+        }
+        if input_dv_work != input_dv.to_path_buf() {
+            let _ = fs::remove_file(&input_dv_work);
         }
         emit_log(app, "info", "Temporary files cleaned up.");
     }
