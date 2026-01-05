@@ -54,18 +54,3 @@ export async function saveDialog(options: {
 
   return save(sanitized);
 }
-
-export async function checkForUpdates() {
-  const { checkUpdate } = await import('@tauri-apps/api/updater');
-  return checkUpdate();
-}
-
-export async function installUpdate() {
-  const { installUpdate } = await import('@tauri-apps/api/updater');
-  return installUpdate();
-}
-
-export async function relaunchApp() {
-  const { relaunch } = await import('@tauri-apps/api/process');
-  return relaunch();
-}

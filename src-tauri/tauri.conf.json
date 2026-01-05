@@ -41,12 +41,7 @@
       ]
     },
     "updater": {
-      "active": true,
-      "endpoints": [
-        "https://github.com/AdkHex/Hybrid-DV-HDR-GUI/releases/latest/download/latest.json"
-      ],
-      "dialog": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkwOTcyNDdCNkU2M0ExQ0QKUldUTm9XTnVleVNYa0h3TkJOcEl0SzVPZVpiMCtQQzE0SmFyMG9OMHhhU1FudzRnZy8wWjRoaTUK"
+      "active": false
     }
   }
 }
