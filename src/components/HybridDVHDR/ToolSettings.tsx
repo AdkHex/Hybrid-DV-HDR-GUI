@@ -14,7 +14,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from '@/components/ui/sonner';
 import type { DownloadProgressPayload, ToolPaths } from './types';
 
 interface ToolSettingsProps {
@@ -58,7 +58,13 @@ export function ToolSettings({
   );
   const [progressVisible, setProgressVisible] = useState<Record<string, boolean>>({});
   const [activeDownloadKey, setActiveDownloadKey] = useState<keyof ToolPaths | null>(null);
-  const { toast } = useToast();
+  const notify = (options: { title: string; description?: string; variant?: 'destructive' }) => {
+    if (options.variant === 'destructive') {
+      toast.error(options.title, { description: options.description });
+      return;
+    }
+    toast(options.title, { description: options.description });
+  };
   const hasMountedRef = useRef(false);
 
   const handleReset = () => {
@@ -89,7 +95,7 @@ export function ToolSettings({
 
   const handleDownload = async () => {
     if (!isTauri()) {
-      toast({
+      notify({
         title: 'Downloads unavailable',
         description: 'Pre-requisites can only be downloaded from the desktop app.',
         variant: 'destructive',
@@ -106,13 +112,13 @@ export function ToolSettings({
       const downloaded = await invokeTauri<ToolPaths>('download_prerequisites');
       setPaths(downloaded);
       onSave(downloaded);
-      toast({
+      notify({
         title: 'Downloads complete',
         description: 'Tool paths were updated to the downloaded binaries.',
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      toast({
+      notify({
         title: 'Download failed',
         description: message,
         variant: 'destructive',
@@ -126,7 +132,7 @@ export function ToolSettings({
 
   const handleDownloadTool = async (key: keyof ToolPaths) => {
     if (!isTauri()) {
-      toast({
+      notify({
         title: 'Downloads unavailable',
         description: 'Pre-requisites can only be downloaded from the desktop app.',
         variant: 'destructive',
@@ -147,13 +153,13 @@ export function ToolSettings({
         return next;
       });
       const label = toolLabels.find((tool) => tool.key === key)?.label ?? key;
-      toast({
+      notify({
         title: 'Download complete',
         description: `${label} path was updated.`,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      toast({
+      notify({
         title: 'Download failed',
         description: message,
         variant: 'destructive',
@@ -256,7 +262,7 @@ export function ToolSettings({
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen && (isDownloading || downloadingKey)) {
-      toast({
+      notify({
         title: 'Downloads in progress',
         description: 'Please wait for downloads to complete before closing Tool Configuration.',
         variant: 'destructive',
