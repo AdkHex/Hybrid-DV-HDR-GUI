@@ -33,12 +33,7 @@
       "icon": [
         "icons/icon.ico"
       ],
-      "resources": [
-        "bin/dovi_tool.exe",
-        "bin/mkvmerge.exe",
-        "bin/mkvextract.exe",
-        "bin/ffmpeg.exe"
-      ]
+      "resources": []
     },
     "updater": {
       "active": false
