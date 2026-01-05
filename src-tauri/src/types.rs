@@ -86,3 +86,14 @@ pub struct FilePayload {
 pub struct StatusPayload {
     pub status: String,
 }
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadProgressPayload {
+    pub tool: String,
+    pub stage: String,
+    pub bytes_received: u64,
+    pub total_bytes: Option<u64>,
+    pub percent: Option<u8>,
+    pub path: Option<String>,
+}

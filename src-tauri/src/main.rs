@@ -9,7 +9,7 @@ mod state;
 mod types;
 
 use commands::{cancel_processing, start_processing};
-use downloads::download_prerequisites;
+use downloads::{download_prerequisites, download_tool};
 use state::ProcessingState;
 
 fn main() {
@@ -18,7 +18,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             start_processing,
             cancel_processing,
-            download_prerequisites
+            download_prerequisites,
+            download_tool
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

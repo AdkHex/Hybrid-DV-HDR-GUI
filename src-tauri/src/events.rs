@@ -1,6 +1,8 @@
 use tauri::{AppHandle, Manager};
 
-use crate::types::{FilePayload, LogPayload, QueuePayload, StatusPayload, StepPayload};
+use crate::types::{
+    DownloadProgressPayload, FilePayload, LogPayload, QueuePayload, StatusPayload, StepPayload,
+};
 
 pub fn emit_log(app: &AppHandle, log_type: &str, message: impl Into<String>) {
     let _ = app.emit_all(
@@ -39,4 +41,8 @@ pub fn emit_status(app: &AppHandle, status: &str) {
             status: status.to_string(),
         },
     );
+}
+
+pub fn emit_download(app: &AppHandle, payload: DownloadProgressPayload) {
+    let _ = app.emit_all("download:progress", payload);
 }

@@ -1,107 +1,20 @@
-use regex::Regex;
 use reqwest::blocking::Client;
 use std::fs::{self, File};
-use std::io;
-use std::path::{Path, PathBuf};
+use std::io::{self, Read, Write};
+use std::path::Path;
 use std::time::Duration;
 use tauri::AppHandle;
-use zip::ZipArchive;
 
-use crate::events::emit_log;
+use crate::events::{emit_download, emit_log};
 use crate::types::ToolPaths;
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
-const DOVI_TOOL_WINDOWS_URL: &str = "https://github.com/quietvoid/dovi_tool/releases/download/2.3.1/dovi_tool-2.3.1-x86_64-pc-windows-msvc.zip";
-const FFMPEG_WINDOWS_URL: &str = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip";
-
-fn ensure_clean_dir(path: &Path) -> Result<(), String> {
-    if path.exists() {
-        fs::remove_dir_all(path)
-            .map_err(|e| format!("Cannot remove {}: {}", path.display(), e))?;
-    }
-    fs::create_dir_all(path).map_err(|e| format!("Cannot create {}: {}", path.display(), e))?;
-    Ok(())
-}
-
-fn download_to(url: &str, dest: &Path) -> Result<(), String> {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(300))
-        .build()
-        .map_err(|e| format!("Cannot create HTTP client: {}", e))?;
-    let mut response = client
-        .get(url)
-        .send()
-        .map_err(|e| format!("Download failed {}: {}", url, e))?;
-    if !response.status().is_success() {
-        return Err(format!("Download failed {}: {}", url, response.status()));
-    }
-    let mut file = File::create(dest).map_err(|e| format!("Cannot write {}: {}", dest.display(), e))?;
-    io::copy(&mut response, &mut file)
-        .map_err(|e| format!("Cannot save {}: {}", dest.display(), e))?;
-    Ok(())
-}
-
-fn extract_zip(zip_path: &Path, dest: &Path) -> Result<(), String> {
-    let file = File::open(zip_path).map_err(|e| format!("Cannot open {}: {}", zip_path.display(), e))?;
-    let mut archive = ZipArchive::new(file).map_err(|e| format!("Invalid zip {}: {}", zip_path.display(), e))?;
-    for i in 0..archive.len() {
-        let mut entry = archive
-            .by_index(i)
-            .map_err(|e| format!("Cannot read zip {}: {}", zip_path.display(), e))?;
-        let Some(relative_path) = entry.enclosed_name() else {
-            continue;
-        };
-        let out_path = dest.join(relative_path);
-        if entry.is_dir() {
-            fs::create_dir_all(&out_path)
-                .map_err(|e| format!("Cannot create {}: {}", out_path.display(), e))?;
-        } else {
-            if let Some(parent) = out_path.parent() {
-                fs::create_dir_all(parent)
-                    .map_err(|e| format!("Cannot create {}: {}", parent.display(), e))?;
-            }
-            let mut out_file =
-                File::create(&out_path).map_err(|e| format!("Cannot write {}: {}", out_path.display(), e))?;
-            io::copy(&mut entry, &mut out_file)
-                .map_err(|e| format!("Cannot extract {}: {}", out_path.display(), e))?;
-        }
-        #[cfg(unix)]
-        {
-            if let Some(mode) = entry.unix_mode() {
-                let mut perms = fs::metadata(&out_path)
-                    .map_err(|e| format!("Cannot read permissions {}: {}", out_path.display(), e))?
-                    .permissions();
-                perms.set_mode(mode);
-                fs::set_permissions(&out_path, perms)
-                    .map_err(|e| format!("Cannot set permissions {}: {}", out_path.display(), e))?;
-            }
-        }
-    }
-    Ok(())
-}
-
-fn extract_7z(archive_path: &Path, dest: &Path) -> Result<(), String> {
-    sevenz_rust::decompress_file(archive_path, dest)
-        .map_err(|e| format!("Cannot extract {}: {}", archive_path.display(), e))?;
-    Ok(())
-}
-
-fn find_file_recursive(root: &Path, target: &str) -> Option<PathBuf> {
-    let entries = fs::read_dir(root).ok()?;
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            if let Some(found) = find_file_recursive(&path, target) {
-                return Some(found);
-            }
-        } else if path.file_name().and_then(|name| name.to_str()) == Some(target) {
-            return Some(path);
-        }
-    }
-    None
-}
+const DOVI_TOOL_DRIVE_ID: &str = "1xDHd8ZYoQY_YqIRTjAHHwI_8rlQLq3yH";
+const MKVEXTRACT_DRIVE_ID: &str = "1qZrSH7uX6V7GVuileOk0tk7XTyVJsvlF";
+const FFMPEG_DRIVE_ID: &str = "1jsAh_R5RiRzL-vw_2TYbtFjsfFT_X6ES";
+const MKVMERGE_DRIVE_ID: &str = "1fhKLll-WtrWMPcfipre6D0DUgyHUpMci";
 
 #[cfg(unix)]
 fn ensure_executable(path: &Path) -> Result<(), String> {
@@ -119,43 +32,137 @@ fn ensure_executable(_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn fetch_mkvtoolnix_url() -> Result<String, String> {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(60))
-        .build()
-        .map_err(|e| format!("Cannot create HTTP client: {}", e))?;
-    let html = client
-        .get("https://mkvtoolnix.download/downloads.html")
-        .send()
-        .map_err(|e| format!("Cannot fetch MKVToolNix downloads: {}", e))?
-        .text()
-        .map_err(|e| format!("Cannot read MKVToolNix downloads: {}", e))?;
-
-    let windows_re =
-        Regex::new(r"windows/releases/[0-9.]+/mkvtoolnix-64-bit-[0-9.]+\.7z")
-            .map_err(|e| e.to_string())?;
-
-    let win_match = windows_re
-        .find(&html)
-        .ok_or("Cannot find MKVToolNix Windows download URL")?;
-
-    Ok(format!(
-        "https://mkvtoolnix.download/{}",
-        win_match.as_str()
-    ))
+fn drive_direct_url(id: &str) -> String {
+    format!("https://dd.bypass-bot.workers.dev/direct.aspx?id={}", id)
 }
 
-fn copy_tool(src: &Path, dest: &Path) -> Result<(), String> {
-    if let Some(parent) = dest.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("Cannot create {}: {}", parent.display(), e))?;
+fn log_backend(level: &str, message: &str) {
+    println!("[{}] {}", level.to_uppercase(), message);
+}
+
+fn log_download(app: &AppHandle, level: &str, message: &str) {
+    let tagged = format!("download: {}", message);
+    emit_log(app, level, &tagged);
+    log_backend(level, &tagged);
+}
+
+fn emit_download_progress(
+    app: &AppHandle,
+    tool: &str,
+    stage: &str,
+    bytes_received: u64,
+    total_bytes: Option<u64>,
+    percent: Option<u8>,
+    path: Option<&Path>,
+) {
+    emit_download(
+        app,
+        crate::types::DownloadProgressPayload {
+            tool: tool.to_string(),
+            stage: stage.to_string(),
+            bytes_received,
+            total_bytes,
+            percent,
+            path: path.map(|value| value.to_string_lossy().to_string()),
+        },
+    );
+}
+
+fn download_to(
+    app: &AppHandle,
+    tool: &str,
+    url: &str,
+    dest: &Path,
+) -> Result<(), String> {
+    let client = Client::builder()
+        .timeout(Duration::from_secs(300))
+        .build()
+        .map_err(|e| format!("Cannot create HTTP client: {}", e))?;
+    let mut response = client
+        .get(url)
+        .send()
+        .map_err(|e| format!("Download failed {}: {}", url, e))?;
+    if !response.status().is_success() {
+        return Err(format!("Download failed {}: {}", url, response.status()));
     }
-    if dest.exists() {
-        fs::remove_file(dest)
-            .map_err(|e| format!("Cannot remove {}: {}", dest.display(), e))?;
+
+    let total_bytes = response.content_length();
+    emit_download_progress(app, tool, "downloading", 0, total_bytes, Some(0), None);
+
+    let mut file = File::create(dest).map_err(|e| format!("Cannot write {}: {}", dest.display(), e))?;
+    let mut buffer = [0u8; 8192];
+    let mut bytes_received: u64 = 0;
+    let mut last_percent: u8 = 0;
+    let mut last_emit_bytes: u64 = 0;
+
+    loop {
+        let read = response
+            .read(&mut buffer)
+            .map_err(|e| format!("Cannot read download {}: {}", url, e))?;
+        if read == 0 {
+            break;
+        }
+        file.write_all(&buffer[..read])
+            .map_err(|e| format!("Cannot save {}: {}", dest.display(), e))?;
+        bytes_received += read as u64;
+
+        if let Some(total) = total_bytes {
+            let percent = ((bytes_received as f64 / total as f64) * 100.0).floor() as u8;
+            if percent != last_percent {
+                last_percent = percent;
+                emit_download_progress(
+                    app,
+                    tool,
+                    "downloading",
+                    bytes_received,
+                    total_bytes,
+                    Some(percent),
+                    None,
+                );
+            }
+        } else if bytes_received.saturating_sub(last_emit_bytes) >= 256 * 1024 {
+            last_emit_bytes = bytes_received;
+            emit_download_progress(
+                app,
+                tool,
+                "downloading",
+                bytes_received,
+                total_bytes,
+                None,
+                None,
+            );
+        }
     }
-    fs::copy(src, dest).map_err(|e| format!("Cannot copy {}: {}", src.display(), e))?;
+
+    let percent = total_bytes.map(|_| 100);
+    emit_download_progress(
+        app,
+        tool,
+        "downloaded",
+        bytes_received,
+        total_bytes,
+        percent,
+        None,
+    );
+    Ok(())
+}
+
+fn download_tool_file(
+    app: &AppHandle,
+    tool_key: &str,
+    label: &str,
+    drive_id: &str,
+    dest: &Path,
+) -> Result<(), String> {
+    let url = drive_direct_url(drive_id);
+    emit_download_progress(app, tool_key, "starting", 0, None, Some(0), None);
+    let message = format!("Downloading {} from {}", label, url);
+    log_download(app, "info", &message);
+    download_to(app, tool_key, &url, dest)?;
     ensure_executable(dest)?;
+    emit_download_progress(app, tool_key, "installed", 0, None, Some(100), Some(dest));
+    let message = format!("Installed {} to {}", label, dest.display());
+    log_download(app, "info", &message);
     Ok(())
 }
 
@@ -164,149 +171,125 @@ fn tool_names() -> (&'static str, &'static str, &'static str, &'static str) {
 }
 
 #[tauri::command]
-pub fn download_prerequisites(app: AppHandle) -> Result<ToolPaths, String> {
-    let result = (|| {
-    emit_log(&app, "info", "Starting prerequisite download.");
-    let app_data_dir = app
-        .path_resolver()
-        .app_data_dir()
-        .ok_or("Cannot resolve app data directory")?;
-    let tools_dir = app_data_dir.join("bin");
-    emit_log(
-        &app,
-        "info",
-        format!("Tools directory: {}", tools_dir.display()),
-    );
-    fs::create_dir_all(&tools_dir)
-        .map_err(|e| format!("Cannot create tools directory: {}", e))?;
+pub async fn download_prerequisites(app: AppHandle) -> Result<ToolPaths, String> {
+    let app_handle = app.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let message = "Starting prerequisite download.".to_string();
+        log_download(&app_handle, "info", &message);
+        let app_data_dir = app_handle
+            .path_resolver()
+            .app_data_dir()
+            .ok_or("Cannot resolve app data directory")?;
+        let tools_dir = app_data_dir.join("bin");
+        let message = format!("Tools directory: {}", tools_dir.display());
+        log_download(&app_handle, "info", &message);
+        fs::create_dir_all(&tools_dir)
+            .map_err(|e| format!("Cannot create tools directory: {}", e))?;
 
-    let temp_root = std::env::temp_dir().join("hybrid-dv-hdr-downloads");
-    emit_log(
-        &app,
-        "info",
-        format!("Using temp directory: {}", temp_root.display()),
-    );
-    ensure_clean_dir(&temp_root)?;
+        let (dovi_name, mkvmerge_name, mkvextract_name, ffmpeg_name) = tool_names();
 
-    let (dovi_name, mkvmerge_name, mkvextract_name, ffmpeg_name) = tool_names();
+        let dovi_dest = tools_dir.join(dovi_name);
+        download_tool_file(
+            &app_handle,
+            "doviTool",
+            "dovi_tool",
+            DOVI_TOOL_DRIVE_ID,
+            &dovi_dest,
+        )?;
 
-    let dovi_archive = temp_root.join("dovi_tool.zip");
-    let dovi_extract = temp_root.join("dovi_tool");
-    let dovi_url = DOVI_TOOL_WINDOWS_URL;
-    emit_log(
-        &app,
-        "info",
-        format!("Downloading dovi_tool from {}", dovi_url),
-    );
-    download_to(dovi_url, &dovi_archive)?;
-    emit_log(
-        &app,
-        "info",
-        format!("Extracting dovi_tool to {}", dovi_extract.display()),
-    );
-    ensure_clean_dir(&dovi_extract)?;
-    extract_zip(&dovi_archive, &dovi_extract)?;
-    let dovi_source = find_file_recursive(&dovi_extract, dovi_name)
-        .ok_or_else(|| "Cannot find dovi_tool in archive".to_string())?;
-    let dovi_dest = tools_dir.join(dovi_name);
-    copy_tool(&dovi_source, &dovi_dest)?;
-    emit_log(
-        &app,
-        "info",
-        format!("Installed dovi_tool to {}", dovi_dest.display()),
-    );
-
-    emit_log(&app, "info", "Resolving MKVToolNix download URL.");
-    let mkv_windows_url = fetch_mkvtoolnix_url()?;
-    let mkv_archive = temp_root.join("mkvtoolnix.7z");
-    let mkv_extract = temp_root.join("mkvtoolnix");
-    emit_log(
-        &app,
-        "info",
-        format!("Downloading MKVToolNix from {}", mkv_windows_url),
-    );
-    download_to(&mkv_windows_url, &mkv_archive)?;
-    emit_log(
-        &app,
-        "info",
-        format!("Extracting MKVToolNix to {}", mkv_extract.display()),
-    );
-    ensure_clean_dir(&mkv_extract)?;
-    extract_7z(&mkv_archive, &mkv_extract)?;
-
-    let mkvmerge_source = find_file_recursive(&mkv_extract, mkvmerge_name)
-        .ok_or_else(|| "Cannot find mkvmerge in MKVToolNix archive".to_string())?;
-    let mkvextract_source = find_file_recursive(&mkv_extract, mkvextract_name)
-        .ok_or_else(|| "Cannot find mkvextract in MKVToolNix archive".to_string())?;
-
-    let mkvmerge_dest = tools_dir.join(mkvmerge_name);
-    let mkvextract_dest = tools_dir.join(mkvextract_name);
-    copy_tool(&mkvmerge_source, &mkvmerge_dest)?;
-    copy_tool(&mkvextract_source, &mkvextract_dest)?;
-    emit_log(
-        &app,
-        "info",
-        format!(
+        let mkvmerge_dest = tools_dir.join(mkvmerge_name);
+        let mkvextract_dest = tools_dir.join(mkvextract_name);
+        download_tool_file(
+            &app_handle,
+            "mkvmerge",
+            "mkvmerge",
+            MKVMERGE_DRIVE_ID,
+            &mkvmerge_dest,
+        )?;
+        download_tool_file(
+            &app_handle,
+            "mkvextract",
+            "mkvextract",
+            MKVEXTRACT_DRIVE_ID,
+            &mkvextract_dest,
+        )?;
+        let message = format!(
             "Installed MKVToolNix tools: {}, {}",
             mkvmerge_dest.display(),
             mkvextract_dest.display()
-        ),
-    );
+        );
+        log_download(&app_handle, "info", &message);
 
-    let ffmpeg_archive = temp_root.join("ffmpeg.zip");
-    let ffmpeg_extract = temp_root.join("ffmpeg");
-    let ffmpeg_url = FFMPEG_WINDOWS_URL;
-    emit_log(
-        &app,
-        "info",
-        format!("Downloading ffmpeg from {}", ffmpeg_url),
-    );
-    download_to(ffmpeg_url, &ffmpeg_archive)?;
-    emit_log(
-        &app,
-        "info",
-        format!("Extracting ffmpeg to {}", ffmpeg_extract.display()),
-    );
-    ensure_clean_dir(&ffmpeg_extract)?;
-    extract_zip(&ffmpeg_archive, &ffmpeg_extract)?;
-    let ffmpeg_source = find_file_recursive(&ffmpeg_extract, ffmpeg_name)
-        .ok_or_else(|| "Cannot find ffmpeg in archive".to_string())?;
-    let ffmpeg_dest = tools_dir.join(ffmpeg_name);
-    copy_tool(&ffmpeg_source, &ffmpeg_dest)?;
-    emit_log(
-        &app,
-        "info",
-        format!("Installed ffmpeg to {}", ffmpeg_dest.display()),
-    );
+        let ffmpeg_dest = tools_dir.join(ffmpeg_name);
+        download_tool_file(
+            &app_handle,
+            "ffmpeg",
+            "ffmpeg",
+            FFMPEG_DRIVE_ID,
+            &ffmpeg_dest,
+        )?;
 
-    let (mkvmerge_path, mkvextract_path) = (
-        tools_dir.join(mkvmerge_name),
-        tools_dir.join(mkvextract_name),
-    );
+        let (mkvmerge_path, mkvextract_path) = (
+            tools_dir.join(mkvmerge_name),
+            tools_dir.join(mkvextract_name),
+        );
 
-    ensure_executable(&mkvmerge_path)?;
-    ensure_executable(&mkvextract_path)?;
+        ensure_executable(&mkvmerge_path)?;
+        ensure_executable(&mkvextract_path)?;
 
-    let tool_paths = ToolPaths {
-        dovi_tool: dovi_dest.to_string_lossy().to_string(),
-        mkvmerge: mkvmerge_path.to_string_lossy().to_string(),
-        mkvextract: mkvextract_path.to_string_lossy().to_string(),
-        ffmpeg: ffmpeg_dest.to_string_lossy().to_string(),
-        default_output: "DV.HDR".to_string(),
-    };
+        let tool_paths = ToolPaths {
+            dovi_tool: dovi_dest.to_string_lossy().to_string(),
+            mkvmerge: mkvmerge_path.to_string_lossy().to_string(),
+            mkvextract: mkvextract_path.to_string_lossy().to_string(),
+            ffmpeg: ffmpeg_dest.to_string_lossy().to_string(),
+            default_output: "DV.HDR".to_string(),
+        };
 
-    emit_log(&app, "info", "Cleaning up download temp directory.");
-    let _ = fs::remove_dir_all(&temp_root);
-    emit_log(&app, "info", "Prerequisite download complete.");
-    Ok(tool_paths)
-    })();
+        let message = "Prerequisite download complete.".to_string();
+        log_download(&app_handle, "info", &message);
+        Ok(tool_paths)
+    })
+    .await
+    .map_err(|e| e.to_string())?;
 
     if let Err(err) = &result {
-        emit_log(
-            &app,
-            "error",
-            format!("Prerequisite download failed: {}", err),
-        );
+        let message = format!("Prerequisite download failed: {}", err);
+        log_download(&app, "error", &message);
+    }
+
+    result
+}
+
+#[tauri::command]
+pub async fn download_tool(app: AppHandle, tool: String) -> Result<String, String> {
+    let app_handle = app.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let app_data_dir = app_handle
+            .path_resolver()
+            .app_data_dir()
+            .ok_or("Cannot resolve app data directory")?;
+        let tools_dir = app_data_dir.join("bin");
+        fs::create_dir_all(&tools_dir)
+            .map_err(|e| format!("Cannot create tools directory: {}", e))?;
+
+        let (key, label, drive_id, filename) = match tool.as_str() {
+            "doviTool" => ("doviTool", "dovi_tool", DOVI_TOOL_DRIVE_ID, "dovi_tool.exe"),
+            "mkvmerge" => ("mkvmerge", "mkvmerge", MKVMERGE_DRIVE_ID, "mkvmerge.exe"),
+            "mkvextract" => ("mkvextract", "mkvextract", MKVEXTRACT_DRIVE_ID, "mkvextract.exe"),
+            "ffmpeg" => ("ffmpeg", "ffmpeg", FFMPEG_DRIVE_ID, "ffmpeg.exe"),
+            _ => return Err(format!("Unknown tool key: {}", tool)),
+        };
+
+        let dest = tools_dir.join(filename);
+        download_tool_file(&app_handle, key, label, drive_id, &dest)?;
+        Ok(dest.to_string_lossy().to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    if let Err(err) = &result {
+        let message = format!("Tool download failed: {}", err);
+        log_download(&app, "error", &message);
     }
 
     result

@@ -100,3 +100,12 @@ export interface FileProgressPayload {
 export interface StatusPayload {
   status: ProcessingStatus;
 }
+
+export interface DownloadProgressPayload {
+  tool: string;
+  stage: string;
+  bytesReceived: number;
+  totalBytes?: number;
+  percent?: number;
+  path?: string;
+}
