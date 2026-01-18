@@ -17,14 +17,11 @@ use crate::utils::{
 pub async fn download_file(url: String, filename: String, app: AppHandle) -> Result<String, String> {
     emit_log(&app, "info", format!("Downloading {}...", filename));
     
-    // Resolve bin directory relative to current executable or app directory
-    let bin_path = if let Ok(mut path) = std::env::current_exe() {
-        path.pop();
-        path.push("bin");
-        path
-    } else {
-        return Err("Could not determine executable path".to_string());
-    };
+    // Use AppData directory to avoid permission issues (OS Error 5 in Program Files)
+    let bin_path = app.path_resolver()
+        .app_data_dir()
+        .ok_or("Could not resolve app data directory".to_string())?
+        .join("bin");
 
     if !bin_path.exists() {
         fs::create_dir_all(&bin_path).map_err(|e| e.to_string())?;
