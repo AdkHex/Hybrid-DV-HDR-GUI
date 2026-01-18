@@ -7,19 +7,13 @@ import {
   Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
 import { FileInput } from './FileInput';
 import { ProcessingSteps } from './ProcessingSteps';
 import { ConsoleLog } from './ConsoleLog';
 import { ToolSettings } from './ToolSettings';
 import { FileQueue } from './FileQueue';
-import { 
-  isTauri, 
-  invokeTauri, 
-  listenTauri, 
-  openDialog, 
-  saveDialog
-} from '@/lib/tauri';
+import { isTauri, invokeTauri, listenTauri, openDialog, saveDialog } from '@/lib/tauri';
 import type {
   ProcessingConfig, 
   ProcessingStep, 
@@ -47,87 +41,38 @@ const defaultSteps: ProcessingStep[] = [
 ];
 
 const defaultToolPaths: ToolPaths = {
-  doviTool: 'bin\\dovi_tool.exe',
-  mkvmerge: 'bin\\mkvmerge.exe',
-  mkvextract: 'bin\\mkvextract.exe',
-  ffmpeg: 'bin\\ffmpeg.exe',
+  doviTool: 'dovi_tool',
+  mkvmerge: 'mkvmerge',
+  mkvextract: 'mkvextract',
+  ffmpeg: 'ffmpeg',
   defaultOutput: 'DV.HDR',
 };
 
 export function HybridDVHDRTool() {
-  const toolPathsStorageKey = 'hybrid-dv-hdr:toolPaths';
-  const configStorageKey = 'hybrid-dv-hdr:config';
   const [pathKinds, setPathKinds] = useState<{ hdr: 'file' | 'folder' | 'unknown'; dv: 'file' | 'folder' | 'unknown'; output: 'file' | 'folder' | 'unknown' }>({
     hdr: 'unknown',
     dv: 'unknown',
     output: 'unknown',
   });
-  const [config, setConfig] = useState<ProcessingConfig>(() => {
-    if (typeof window === 'undefined') {
-      return {
-        hdrPath: '',
-        dvPath: '',
-        outputPath: '',
-        mode: 'single',
-        parallelTasks: 8,
-        keepTempFiles: false,
-      };
-    }
-    try {
-      const stored = window.localStorage.getItem(configStorageKey);
-      if (!stored) {
-        return {
-          hdrPath: '',
-          dvPath: '',
-          outputPath: '',
-          mode: 'single',
-          parallelTasks: 8,
-          keepTempFiles: false,
-        };
-      }
-      const parsed = JSON.parse(stored) as Partial<ProcessingConfig>;
-      return {
-        hdrPath: '',
-        dvPath: '',
-        outputPath: '',
-        mode: 'single',
-        parallelTasks: 8,
-        keepTempFiles: false,
-        ...parsed,
-      };
-    } catch {
-      return {
-        hdrPath: '',
-        dvPath: '',
-        outputPath: '',
-        mode: 'single',
-        parallelTasks: 8,
-        keepTempFiles: false,
-      };
-    }
+  const [config, setConfig] = useState<ProcessingConfig>({
+    hdrPath: '',
+    dvPath: '',
+    outputPath: '',
+    mode: 'single',
+    parallelTasks: 4,
+    keepTempFiles: false,
   });
   
-  const [toolPaths, setToolPaths] = useState<ToolPaths>(() => {
-    if (typeof window === 'undefined') return defaultToolPaths;
-    try {
-      const stored = window.localStorage.getItem(toolPathsStorageKey);
-      if (!stored) return defaultToolPaths;
-      const parsed = JSON.parse(stored) as Partial<ToolPaths>;
-      return { ...defaultToolPaths, ...parsed };
-    } catch {
-      return defaultToolPaths;
-    }
-  });
+  const [toolPaths, setToolPaths] = useState<ToolPaths>(defaultToolPaths);
   const [status, setStatus] = useState<ProcessingStatus>('idle');
   const [steps, setSteps] = useState<ProcessingStep[]>(defaultSteps);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [queue, setQueue] = useState<QueueFile[]>([]);
   const [fileProgress, setFileProgress] = useState<FileProgressEntry[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const queueMetaRef = useRef(new Map<string, { start: number; lastProgress: number }>());
   const fileMetaRef = useRef(new Map<string, { start: number; lastProgress: number }>());
   const [selectedQueueIds, setSelectedQueueIds] = useState<Set<string>>(new Set());
-  const configSaveRef = useRef<number | null>(null);
-  const toolPathsSaveRef = useRef<number | null>(null);
 
   const addLog = useCallback((type: LogEntry['type'], message: string) => {
     const entry: LogEntry = {
@@ -138,6 +83,42 @@ export function HybridDVHDRTool() {
     };
     setLogs(prev => [...prev, entry]);
   }, []);
+
+  // Load settings from localStorage
+  useEffect(() => {
+    const savedConfig = localStorage.getItem('hybrid-dv-hdr-config');
+    const savedTools = localStorage.getItem('hybrid-dv-hdr-tools');
+    
+    if (savedConfig) {
+      try {
+        const parsed = JSON.parse(savedConfig);
+        setConfig(prev => ({
+            ...prev,
+            parallelTasks: parsed.parallelTasks ?? 4,
+            keepTempFiles: parsed.keepTempFiles ?? false
+        }));
+      } catch (e) { console.error("Failed to load config", e); }
+    }
+
+    if (savedTools) {
+       try {
+        const parsed = JSON.parse(savedTools);
+        setToolPaths(parsed);
+       } catch (e) { console.error("Failed to load tool paths", e); }
+    }
+  }, []);
+
+  // Save settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('hybrid-dv-hdr-config', JSON.stringify({
+        parallelTasks: config.parallelTasks,
+        keepTempFiles: config.keepTempFiles
+    }));
+  }, [config.parallelTasks, config.keepTempFiles]);
+
+  useEffect(() => {
+     localStorage.setItem('hybrid-dv-hdr-tools', JSON.stringify(toolPaths));
+  }, [toolPaths]);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -241,34 +222,6 @@ export function HybridDVHDRTool() {
     };
   }, [addLog]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (toolPathsSaveRef.current) {
-      window.clearTimeout(toolPathsSaveRef.current);
-    }
-    toolPathsSaveRef.current = window.setTimeout(() => {
-      try {
-        window.localStorage.setItem(toolPathsStorageKey, JSON.stringify(toolPaths));
-      } catch {
-        // ignore storage errors
-      }
-    }, 400);
-  }, [toolPaths, toolPathsStorageKey]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (configSaveRef.current) {
-      window.clearTimeout(configSaveRef.current);
-    }
-    configSaveRef.current = window.setTimeout(() => {
-      try {
-        window.localStorage.setItem(configStorageKey, JSON.stringify(config));
-      } catch {
-        // ignore storage errors
-      }
-    }, 400);
-  }, [config, configStorageKey]);
-
   const derivedMode: ProcessingMode =
     pathKinds.hdr === 'folder' && pathKinds.dv === 'folder' ? 'batch' : 'single';
 
@@ -300,8 +253,6 @@ export function HybridDVHDRTool() {
     setConfig(prev => ({ ...prev, hdrPath: '', dvPath: '', outputPath: '' }));
     addLog('info', `Added to queue: ${newFile.outputFile}`);
   }, [config, addLog, derivedMode, toolPaths.defaultOutput]);
-
-
 
   const browseFile = useCallback(
     async (target: 'hdr' | 'dv' | 'output') => {
@@ -382,6 +333,7 @@ export function HybridDVHDRTool() {
     addLog('info', `Mode: ${derivedMode === 'single' ? 'Single File' : 'Batch'}`);
     
     if (derivedMode === 'batch' && queue.length > 0) {
+      // Process queue
       for (let q = 0; q < queue.length; q++) {
         const file = queue[q];
         addLog('info', `Processing file ${q + 1}/${queue.length}: ${file.outputFile}`);
@@ -415,6 +367,7 @@ export function HybridDVHDRTool() {
         addLog('success', `Completed: ${file.outputFile}`);
       }
     } else {
+      // Single file mode
       addLog('info', `HDR Source: ${config.hdrPath}`);
       addLog('info', `DV Source: ${config.dvPath}`);
       
@@ -516,18 +469,10 @@ export function HybridDVHDRTool() {
   };
 
   const isProcessing = status === 'processing';
-  const canStart =
-    derivedMode === 'single'
-      ? Boolean(config.hdrPath && config.dvPath)
-      : queue.length > 0 && selectedQueueIds.size > 0;
-  const startLabel =
-    derivedMode === 'batch'
-      ? `Start Selected (${selectedQueueIds.size})`
-      : 'Start Processing';
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      {}
+      {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
@@ -542,8 +487,8 @@ export function HybridDVHDRTool() {
             </p>
           </div>
         </div>
-        <ToolSettings
-          toolPaths={toolPaths}
+        <ToolSettings 
+          toolPaths={toolPaths} 
           onSave={setToolPaths}
           parallelTasks={config.parallelTasks}
           onParallelTasksChange={(v) => setConfig(prev => ({ ...prev, parallelTasks: v }))}
@@ -552,7 +497,7 @@ export function HybridDVHDRTool() {
         />
       </div>
 
-      {}
+      {/* Mode Tabs */}
       <div className="mb-6 p-4 rounded-lg border border-border bg-card space-y-4">
           <FileInput
             label="HDR Source (file or folder)"
@@ -609,7 +554,7 @@ export function HybridDVHDRTool() {
         )}
       </div>
 
-      {}
+      {/* File Queue (Batch Mode) */}
       {derivedMode === 'batch' && (
         <div className="mb-6">
           <FileQueue 
@@ -639,24 +584,45 @@ export function HybridDVHDRTool() {
         </div>
       )}
 
-      <div className="mb-6 rounded-lg border border-border bg-card p-4 flex items-center gap-3">
+      {/* Settings Dialog (via ToolSettings) handles configuration now */}
+
+      {/* Processing Steps (Single Mode) */}
+
+      {/* Processing Steps (Single Mode) */}
+      {derivedMode === 'single' && (status === 'processing' || status === 'completed') && (
+        <div className="mb-6">
+          <ProcessingSteps steps={steps} />
+        </div>
+      )}
+
+      {/* Console Log */}
+      <div className="mb-6">
+        <ConsoleLog logs={logs} />
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-3">
         {!isProcessing ? (
           <Button 
             onClick={handleStart} 
-            className="flex-1 glow-primary h-11 text-base"
-            disabled={!canStart}
+            className="flex-1 glow-primary"
+            disabled={
+              derivedMode === 'single' 
+                ? !config.hdrPath || !config.dvPath
+                : queue.length === 0 || selectedQueueIds.size === 0
+            }
           >
             <Play className="h-4 w-4 mr-2" />
-            {startLabel}
+            Start Processing
           </Button>
         ) : (
           <Button 
             onClick={handleStop} 
             variant="destructive"
-            className="flex-1 h-11 text-base"
+            className="flex-1"
           >
             <Square className="h-4 w-4 mr-2" />
-            Stop Processing
+            Stop
           </Button>
         )}
         
@@ -664,24 +630,12 @@ export function HybridDVHDRTool() {
           onClick={handleClear} 
           variant="outline"
           disabled={isProcessing}
-          className="h-11"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
 
-      {derivedMode === 'single' && (status === 'processing' || status === 'completed') && (
-        <div className="mb-6">
-          <ProcessingSteps steps={steps} />
-        </div>
-      )}
-
-      {}
-      <div className="mb-6">
-        <ConsoleLog logs={logs} />
-      </div>
-
-      {}
+      {/* Status Bar */}
       {status !== 'idle' && (
         <div className="mt-4 text-center">
           <span className={`text-sm font-medium ${

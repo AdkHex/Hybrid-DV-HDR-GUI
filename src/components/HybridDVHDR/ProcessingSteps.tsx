@@ -20,7 +20,7 @@ export function ProcessingSteps({ steps }: ProcessingStepsProps) {
             step.status === 'pending' && "bg-muted/50 border-border/50"
           )}
         >
-          {}
+          {/* Status Icon */}
           <div className={cn(
             "flex items-center justify-center h-8 w-8 rounded-full shrink-0",
             step.status === 'active' && "bg-primary/20",
@@ -42,7 +42,7 @@ export function ProcessingSteps({ steps }: ProcessingStepsProps) {
             )}
           </div>
 
-          {}
+          {/* Step Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <span className={cn(
@@ -60,7 +60,7 @@ export function ProcessingSteps({ steps }: ProcessingStepsProps) {
             </div>
             <p className="text-xs text-muted-foreground truncate">{step.description}</p>
             
-            {}
+            {/* Progress Bar */}
             {step.status === 'active' && (
               <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden">
                 <div

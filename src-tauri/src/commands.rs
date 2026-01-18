@@ -1,15 +1,83 @@
-use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::io::Write;
 use tauri::AppHandle;
+use regex::Regex;
 
-use crate::events::{emit_log, emit_status};
-use crate::paths::{compute_output_for_batch, compute_output_for_single, find_matching_dv_file};
-use crate::pipeline::process_queue_item;
-use crate::state::ProcessingState;
-use crate::types::ProcessingRequest;
+use crate::models::{ProcessingState, ProcessingRequest};
+use crate::processing::{process_queue_item, run_pipeline};
+use crate::utils::{
+    emit_log, emit_status, compute_output_for_batch, compute_output_for_single,
+    find_matching_dv_file
+};
+
+#[tauri::command]
+pub async fn download_file(url: String, filename: String, app: AppHandle) -> Result<String, String> {
+    emit_log(&app, "info", format!("Downloading {}...", filename));
+    
+    // Resolve bin directory relative to current executable or app directory
+    let bin_path = if let Ok(mut path) = std::env::current_exe() {
+        path.pop();
+        path.push("bin");
+        path
+    } else {
+        return Err("Could not determine executable path".to_string());
+    };
+
+    if !bin_path.exists() {
+        fs::create_dir_all(&bin_path).map_err(|e| e.to_string())?;
+    }
+
+    let target_path = bin_path.join(&filename);
+    let mut last_error = String::from("Unknown error");
+    let max_retries = 3;
+
+    for attempt in 1..=max_retries {
+        if attempt > 1 {
+            emit_log(&app, "info", format!("Retrying download (attempt {}/{})...", attempt, max_retries));
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        }
+
+        let download_result = async {
+            let response = reqwest::get(&url)
+                .await
+                .map_err(|e| format!("Failed to connect: {}", e))?;
+            
+            if !response.status().is_success() {
+                return Err(format!("Download failed with status: {}", response.status()));
+            }
+
+            let content = response.bytes()
+                .await
+                .map_err(|e| format!("Failed to read bytes: {}", e))?;
+
+            // Write to a temporary file first to avoid corruption? 
+            // For now, simplicity: write to target directly but truncate.
+            let mut file = fs::File::create(&target_path)
+                .map_err(|e| format!("Failed to create file: {}", e))?;
+            
+            file.write_all(&content)
+                .map_err(|e| format!("Failed to write to file: {}", e))?;
+                
+            Ok(())
+        }.await;
+
+        match download_result {
+            Ok(_) => {
+                emit_log(&app, "success", format!("Downloaded {} to {}", filename, target_path.display()));
+                return Ok(target_path.to_string_lossy().to_string());
+            },
+            Err(e) => {
+                emit_log(&app, "warning", format!("Download attempt {} failed: {}", attempt, e));
+                last_error = e;
+            }
+        }
+    }
+
+    Err(format!("Failed after {} attempts. Last error: {}", max_retries, last_error))
+}
 
 #[tauri::command]
 pub async fn start_processing(
@@ -27,7 +95,7 @@ pub async fn start_processing(
 
     let tool_paths = request.tool_paths;
     let app_handle = app.clone();
-    let state = state.inner().clone();
+    let state_inner = state.inner().clone();
 
     let result = tauri::async_runtime::spawn_blocking(move || {
         if request.mode == "batch" {
@@ -45,7 +113,7 @@ pub async fn start_processing(
 
             for item in request.queue.iter().cloned() {
                 let app_handle = app_handle.clone();
-                let state = state.clone();
+                let state = state_inner.clone();
                 let tool_paths = tool_paths.clone();
                 let error_state = Arc::clone(&error_state);
                 let keep_temp = request.keep_temp_files;
@@ -57,7 +125,6 @@ pub async fn start_processing(
                         tool_paths,
                         item,
                         keep_temp,
-                        request.parallel_tasks,
                     );
 
                     if let Err(err) = result {
@@ -117,9 +184,9 @@ pub async fn start_processing(
                 let dv_path = PathBuf::from(&request.dv_path).join(dv_file);
                 let output_path = compute_output_for_batch(&output_base, hdr_file);
 
-                crate::pipeline::run_pipeline(
+                run_pipeline(
                     &app_handle,
-                    &state,
+                    &state_inner,
                     &tool_paths,
                     &hdr_path,
                     &dv_path,
@@ -143,9 +210,9 @@ pub async fn start_processing(
                 &hdr_path,
             );
 
-            crate::pipeline::run_pipeline(
+            run_pipeline(
                 &app_handle,
-                &state,
+                &state_inner,
                 &tool_paths,
                 &hdr_path,
                 &dv_path,

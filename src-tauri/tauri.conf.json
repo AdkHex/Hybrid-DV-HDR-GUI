@@ -6,14 +6,18 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "Hybrid DV HDR Tool",
-    "version": "1.0.0"
+    "productName": "Hybrid DV HDR Tool By Ionicboy",
+    "version": "1.4.0"
   },
   "tauri": {
     "allowlist": {
       "dialog": {
         "open": true,
-        "save": true
+        "save": true,
+        "message": true
+      },
+      "shell": {
+        "open": true
       }
     },
     "windows": [
@@ -23,20 +27,18 @@
         "height": 1000,
         "minWidth": 1300,
         "minHeight": 820,
-        "resizable": true
+        "resizable": true,
+        "maximized": true
       }
     ],
     "bundle": {
       "active": true,
-      "targets": ["msi", "nsis"],
-      "identifier": "com.Ionicboy.hybrid-dv-hdr",
+      "targets": ["msi"],
+      "identifier": "com.ionicboy.hybrid-dv-hdr",
       "icon": [
         "icons/icon.ico"
       ],
       "resources": []
-    },
-    "updater": {
-      "active": false
     }
   }
 }

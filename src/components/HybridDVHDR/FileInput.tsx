@@ -69,9 +69,11 @@ export function FileInput({
 
       const files = Array.from(e.dataTransfer.files);
       if (files.length > 0) {
+        // For single file mode, just use the first file
         const filePath = (files[0] as unknown as { path?: string }).path || files[0].name;
         onChange(filePath);
 
+        // If multiple files dropped and handler exists, pass all
         if (onFileDrop && files.length > 1) {
           onFileDrop(
             files.map((f) => (f as unknown as { path?: string }).path || f.name),

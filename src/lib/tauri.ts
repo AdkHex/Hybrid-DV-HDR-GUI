@@ -54,3 +54,8 @@ export async function saveDialog(options: {
 
   return save(sanitized);
 }
+
+export async function openUrl(url: string) {
+  const { open } = await import('@tauri-apps/api/shell');
+  return open(url);
+}
