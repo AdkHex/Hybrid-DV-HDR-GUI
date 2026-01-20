@@ -37,6 +37,9 @@ const defaultPaths: ToolPaths = {
   mkvmerge: 'mkvmerge',
   mkvextract: 'mkvextract',
   ffmpeg: 'ffmpeg',
+  mediainfo: 'MediaInfo',
+  mp4box: 'MP4Box',
+  hdr10plusTool: 'hdr10plus_tool',
   defaultOutput: 'DV.HDR',
 };
 
@@ -45,6 +48,9 @@ const toolLabels = [
   { key: 'mkvmerge' as const, label: 'mkvmerge', icon: '📦' },
   { key: 'mkvextract' as const, label: 'mkvextract', icon: '📤' },
   { key: 'ffmpeg' as const, label: 'ffmpeg', icon: '🎬' },
+  { key: 'mediainfo' as const, label: 'MediaInfo', icon: '📊' },
+  { key: 'mp4box' as const, label: 'MP4Box', icon: '🧰' },
+  { key: 'hdr10plusTool' as const, label: 'hdr10plus_tool', icon: '✨' },
   { key: 'defaultOutput' as const, label: 'Default Output Folder', icon: '📁' },
 ];
 
@@ -53,6 +59,8 @@ const downloadLinks = [
   { name: 'mkvextract', filename: 'mkvextract.exe', id: '1wjkKcFVD4YBFc62W1gr4mLHBtIk5nxUF' },
   { name: 'doviTool', filename: 'dovi_tool.exe', id: '1m12rSnBJ7bjzeOFhGyY3HFZD6HAwtGjm' },
   { name: 'ffmpeg', filename: 'ffmpeg.exe', id: '1dn75gMzrhGIMwJR2Ucsmo9EOTnpSHiOQ' },
+  { name: 'mp4box', filename: 'MP4Box.zip', id: '1RCAFyqm1oV81bluEuy8QXPqltcMDNmcR' },
+  { name: 'hdr10plusTool', filename: 'hdr10plus_tool.exe', id: '1ykMGoQQ6NYl2K8M_ePF7tLygPZZN9hlz' },
 ];
 
 export function ToolSettings({ 
@@ -123,6 +131,7 @@ export function ToolSettings({
     setDownloading(true);
     const bypassBase = "https://bypasszbot.legendindex.workers.dev/direct.aspx?id=";
     const newPaths = { ...paths };
+    let mp4boxZipPath: string | null = null;
 
     try {
       for (const tool of downloadLinks) {
@@ -138,13 +147,21 @@ export function ToolSettings({
         if (tool.name === 'mkvmerge') newPaths.mkvmerge = savedPath;
         if (tool.name === 'mkvextract') newPaths.mkvextract = savedPath;
         if (tool.name === 'ffmpeg') newPaths.ffmpeg = savedPath;
+        if (tool.name === 'hdr10plusTool') newPaths.hdr10plusTool = savedPath;
+        if (tool.name === 'mp4box') {
+          mp4boxZipPath = savedPath;
+        }
       }
       
       setPaths(newPaths);
       // We don't save immediately here to allow user to review/save manually, 
       // OR we could save immediately. The requirement says "everytime... it should set it".
       // Let's keep the manual save model but update local state so 'Save' button commits it.
-      alert("All tools downloaded and configured successfully! Click 'Save Configuration' to apply.");
+      if (mp4boxZipPath) {
+        alert(`MP4Box downloaded as a zip (${mp4boxZipPath}). Please unzip it and set the MP4Box.exe path manually.`);
+      } else {
+        alert("All tools downloaded and configured successfully! Click 'Save Configuration' to apply.");
+      }
     } catch (error) {
       console.error(error);
       alert(`Download failed: ${error}`);

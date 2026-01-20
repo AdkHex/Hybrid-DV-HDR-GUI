@@ -75,9 +75,6 @@ pub fn compute_output_for_single(
     output_path: &str,
     hdr_path: &Path,
 ) -> PathBuf {
-    if !output_path.is_empty() {
-        return PathBuf::from(output_path);
-    }
     let filename = hdr_path
         .file_name()
         .and_then(|s| s.to_str())
@@ -86,8 +83,16 @@ pub fn compute_output_for_single(
     let base = regex
         .and_then(|re| re.captures(filename).and_then(|c| c.get(1).map(|m| m.as_str())))
         .unwrap_or_else(|| filename.split('.').next().unwrap_or("output"));
-    let filename = format!("{}.DV.HDR.H.265-NOGRP.mkv", base);
-    Path::new(default_output).join(filename)
+    let default_filename = format!("{}.DV.HDR.H.265-NOGRP.mkv", base);
+
+    if !output_path.is_empty() {
+        let candidate = PathBuf::from(output_path);
+        if output_path.ends_with(std::path::MAIN_SEPARATOR) || candidate.is_dir() {
+            return candidate.join(default_filename);
+        }
+        return candidate;
+    }
+    Path::new(default_output).join(default_filename)
 }
 
 pub fn compute_output_for_batch(default_output: &str, hdr_file: &str) -> PathBuf {

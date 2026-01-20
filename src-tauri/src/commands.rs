@@ -107,6 +107,13 @@ pub async fn start_processing(
 
             let mut handles = Vec::new();
             let error_state = Arc::new(Mutex::new(None::<String>));
+            let hdr10plus_path = if request.hdr10plus_path.is_empty() {
+                None
+            } else {
+                Some(PathBuf::from(&request.hdr10plus_path))
+            };
+            let dv_delay_ms = request.dv_delay_ms;
+            let hdr10plus_delay_ms = request.hdr10plus_delay_ms;
 
             for item in request.queue.iter().cloned() {
                 let app_handle = app_handle.clone();
@@ -114,6 +121,9 @@ pub async fn start_processing(
                 let tool_paths = tool_paths.clone();
                 let error_state = Arc::clone(&error_state);
                 let keep_temp = request.keep_temp_files;
+                let hdr10plus_path = hdr10plus_path.clone();
+                let dv_delay_ms = dv_delay_ms;
+                let hdr10plus_delay_ms = hdr10plus_delay_ms;
 
                 let handle = thread::spawn(move || {
                     let result = process_queue_item(
@@ -121,6 +131,9 @@ pub async fn start_processing(
                         state,
                         tool_paths,
                         item,
+                        hdr10plus_path,
+                        dv_delay_ms,
+                        hdr10plus_delay_ms,
                         keep_temp,
                     );
 
@@ -145,6 +158,11 @@ pub async fn start_processing(
                 }
             };
         } else if Path::new(&request.hdr_path).is_dir() {
+            let hdr10plus_path = if request.hdr10plus_path.is_empty() {
+                None
+            } else {
+                Some(PathBuf::from(&request.hdr10plus_path))
+            };
             let mut hdr_files = fs::read_dir(&request.hdr_path)
                 .map_err(|e| e.to_string())?
                 .filter_map(|entry| entry.ok())
@@ -187,7 +205,10 @@ pub async fn start_processing(
                     &tool_paths,
                     &hdr_path,
                     &dv_path,
+                    hdr10plus_path.as_deref(),
                     &output_path,
+                    request.dv_delay_ms,
+                    request.hdr10plus_delay_ms,
                     request.keep_temp_files,
                     None,
                     None,
@@ -199,6 +220,11 @@ pub async fn start_processing(
                 )?;
             }
         } else {
+            let hdr10plus_path = if request.hdr10plus_path.is_empty() {
+                None
+            } else {
+                Some(PathBuf::from(&request.hdr10plus_path))
+            };
             let hdr_path = PathBuf::from(&request.hdr_path);
             let dv_path = PathBuf::from(&request.dv_path);
             let output_path = compute_output_for_single(
@@ -213,7 +239,10 @@ pub async fn start_processing(
                 &tool_paths,
                 &hdr_path,
                 &dv_path,
+                hdr10plus_path.as_deref(),
                 &output_path,
+                request.dv_delay_ms,
+                request.hdr10plus_delay_ms,
                 request.keep_temp_files,
                 None,
                 None,

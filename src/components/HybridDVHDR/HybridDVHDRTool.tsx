@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { 
   Play, 
   Square, 
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { FileInput } from './FileInput';
 import { ProcessingSteps } from './ProcessingSteps';
 import { ConsoleLog } from './ConsoleLog';
@@ -30,6 +31,7 @@ import type {
   FileProgressPayload,
   FileProgressEntry
 } from './types';
+import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/api/notification';
 
 const defaultSteps: ProcessingStep[] = [
   { id: 1, name: 'Extract Audio & Subtitles', description: 'Extracting audio tracks and subtitles from HDR source', status: 'pending', progress: 0 },
@@ -45,12 +47,21 @@ const defaultToolPaths: ToolPaths = {
   mkvmerge: 'mkvmerge',
   mkvextract: 'mkvextract',
   ffmpeg: 'ffmpeg',
+  mediainfo: 'MediaInfo',
+  mp4box: 'MP4Box',
+  hdr10plusTool: 'hdr10plus_tool',
   defaultOutput: 'DV.HDR',
 };
 
 export function HybridDVHDRTool() {
-  const [pathKinds, setPathKinds] = useState<{ hdr: 'file' | 'folder' | 'unknown'; dv: 'file' | 'folder' | 'unknown'; output: 'file' | 'folder' | 'unknown' }>({
+  const [pathKinds, setPathKinds] = useState<{
+    hdr: 'file' | 'folder' | 'unknown';
+    hdr10plus: 'file' | 'folder' | 'unknown';
+    dv: 'file' | 'folder' | 'unknown';
+    output: 'file' | 'folder' | 'unknown';
+  }>({
     hdr: 'unknown',
+    hdr10plus: 'unknown',
     dv: 'unknown',
     output: 'unknown',
   });
@@ -58,6 +69,9 @@ export function HybridDVHDRTool() {
     hdrPath: '',
     dvPath: '',
     outputPath: '',
+    hdr10plusPath: '',
+    dvDelayMs: 0,
+    hdr10plusDelayMs: 0,
     mode: 'single',
     parallelTasks: 4,
     keepTempFiles: false,
@@ -70,8 +84,23 @@ export function HybridDVHDRTool() {
   const [queue, setQueue] = useState<QueueFile[]>([]);
   const [fileProgress, setFileProgress] = useState<FileProgressEntry[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const queueMetaRef = useRef(new Map<string, { start: number; lastProgress: number }>());
-  const fileMetaRef = useRef(new Map<string, { start: number; lastProgress: number }>());
+  const [showDelays, setShowDelays] = useState(false);
+  const [dvDelayInput, setDvDelayInput] = useState('');
+  const [hdr10plusDelayInput, setHdr10plusDelayInput] = useState('');
+  const [isDropActive, setIsDropActive] = useState(false);
+  const [presets, setPresets] = useState<Array<{
+    id: string;
+    name: string;
+    config: ProcessingConfig;
+    toolPaths: ToolPaths;
+    dvDelayInput: string;
+    hdr10plusDelayInput: string;
+    showDelays: boolean;
+  }>>([]);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('');
+  const queueMetaRef = useRef(new Map<string, { start: number; lastProgress: number; samples: Array<{ time: number; progress: number }> }>());
+  const fileMetaRef = useRef(new Map<string, { start: number; lastProgress: number; samples: Array<{ time: number; progress: number }> }>());
+  const statusRef = useRef<ProcessingStatus>('idle');
   const [selectedQueueIds, setSelectedQueueIds] = useState<Set<string>>(new Set());
 
   const addLog = useCallback((type: LogEntry['type'], message: string) => {
@@ -88,6 +117,7 @@ export function HybridDVHDRTool() {
   useEffect(() => {
     const savedConfig = localStorage.getItem('hybrid-dv-hdr-config');
     const savedTools = localStorage.getItem('hybrid-dv-hdr-tools');
+    const savedPresets = localStorage.getItem('hybrid-dv-hdr-presets');
     
     if (savedConfig) {
       try {
@@ -103,8 +133,19 @@ export function HybridDVHDRTool() {
     if (savedTools) {
        try {
         const parsed = JSON.parse(savedTools);
-        setToolPaths(parsed);
+        setToolPaths({ ...defaultToolPaths, ...parsed });
        } catch (e) { console.error("Failed to load tool paths", e); }
+    }
+
+    if (savedPresets) {
+      try {
+        const parsed = JSON.parse(savedPresets);
+        if (Array.isArray(parsed)) {
+          setPresets(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to load presets", e);
+      }
     }
   }, []);
 
@@ -119,6 +160,63 @@ export function HybridDVHDRTool() {
   useEffect(() => {
      localStorage.setItem('hybrid-dv-hdr-tools', JSON.stringify(toolPaths));
   }, [toolPaths]);
+
+  useEffect(() => {
+    localStorage.setItem('hybrid-dv-hdr-presets', JSON.stringify(presets));
+  }, [presets]);
+
+  const etaAveragingWindow = 6;
+
+  const inferPathKind = useCallback((value: string) => {
+    if (!value) return 'unknown' as const;
+    if (value.endsWith('\\') || value.endsWith('/')) return 'folder' as const;
+    return 'file' as const;
+  }, []);
+
+  const notify = useCallback(async (title: string, body: string) => {
+    if (!isTauri()) return;
+    try {
+      let permissionGranted = await isPermissionGranted();
+      if (!permissionGranted) {
+        const permission = await requestPermission();
+        permissionGranted = permission === 'granted';
+      }
+      if (permissionGranted) {
+        sendNotification({ title, body });
+      }
+    } catch (error) {
+      console.error("Failed to send notification", error);
+    }
+  }, []);
+
+  const computeSmoothedEta = useCallback(
+    (
+      meta: { start: number; lastProgress: number; samples: Array<{ time: number; progress: number }> },
+      progress: number,
+    ) => {
+      if (progress <= 0) return undefined;
+      const now = Date.now();
+      const nextSamples = [...meta.samples, { time: now, progress }].slice(-etaAveragingWindow);
+      const deltas = nextSamples
+        .slice(1)
+        .map((sample, index) => {
+          const prev = nextSamples[index];
+          const dt = (sample.time - prev.time) / 1000;
+          const dp = sample.progress - prev.progress;
+          return dt > 0 ? dp / dt : 0;
+        })
+        .filter(rate => rate > 0);
+      if (!deltas.length) {
+        meta.samples = nextSamples;
+        return undefined;
+      }
+      const avgRate = deltas.reduce((sum, rate) => sum + rate, 0) / deltas.length;
+      meta.samples = nextSamples;
+      const remaining = Math.max(0, 100 - progress);
+      return Math.round(remaining / avgRate);
+    },
+    [etaAveragingWindow],
+  );
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -150,12 +248,12 @@ export function HybridDVHDRTool() {
 
           let etaSeconds = item.etaSeconds;
           if (payload.status === 'processing') {
-            const meta = queueMetaRef.current.get(item.id) || { start: Date.now(), lastProgress: 0 };
-            if (payload.progress > 0) {
-              const elapsed = (Date.now() - meta.start) / 1000;
-              etaSeconds = Math.round((elapsed / payload.progress) * (100 - payload.progress));
-              meta.lastProgress = payload.progress;
+            const meta = queueMetaRef.current.get(item.id) || { start: Date.now(), lastProgress: 0, samples: [] };
+            const smoothed = computeSmoothedEta(meta, payload.progress);
+            if (typeof smoothed === 'number') {
+              etaSeconds = smoothed;
             }
+            meta.lastProgress = payload.progress;
             queueMetaRef.current.set(item.id, meta);
           } else if (payload.status === 'completed') {
             etaSeconds = 0;
@@ -177,7 +275,16 @@ export function HybridDVHDRTool() {
       });
 
       unlistenStatus = await listenTauri<StatusPayload>('processing:status', (event) => {
-        setStatus(event.payload.status);
+        const nextStatus = event.payload.status as ProcessingStatus;
+        setStatus(nextStatus);
+        if (statusRef.current !== nextStatus) {
+          statusRef.current = nextStatus;
+          if (nextStatus === 'completed') {
+            notify('Hybrid DV HDR', 'Processing queue completed successfully.');
+          } else if (nextStatus === 'error') {
+            notify('Hybrid DV HDR', 'Processing failed. Check the console output.');
+          }
+        }
       });
 
       unlistenFile = await listenTauri<FileProgressPayload>('processing:file', (event) => {
@@ -185,13 +292,12 @@ export function HybridDVHDRTool() {
         setFileProgress(prev => {
           const existing = prev.find(item => item.id === payload.id);
           let etaSeconds = existing?.etaSeconds;
-          const meta = fileMetaRef.current.get(payload.id) || { start: Date.now(), lastProgress: 0 };
-
-          if (payload.progress > 0) {
-            const elapsed = (Date.now() - meta.start) / 1000;
-            etaSeconds = Math.round((elapsed / payload.progress) * (100 - payload.progress));
-            meta.lastProgress = payload.progress;
+          const meta = fileMetaRef.current.get(payload.id) || { start: Date.now(), lastProgress: 0, samples: [] };
+          const smoothed = computeSmoothedEta(meta, payload.progress);
+          if (typeof smoothed === 'number') {
+            etaSeconds = smoothed;
           }
+          meta.lastProgress = payload.progress;
 
           fileMetaRef.current.set(payload.id, meta);
 
@@ -220,16 +326,133 @@ export function HybridDVHDRTool() {
       if (unlistenStatus) unlistenStatus();
       if (unlistenFile) unlistenFile();
     };
-  }, [addLog]);
+  }, [addLog, computeSmoothedEta, notify]);
 
+  const derivedHdrPath = config.hdrPath || config.hdr10plusPath;
+  const derivedHdrKind = config.hdrPath ? pathKinds.hdr : pathKinds.hdr10plus;
   const derivedMode: ProcessingMode =
-    pathKinds.hdr === 'folder' && pathKinds.dv === 'folder' ? 'batch' : 'single';
+    queue.length > 0
+      ? 'batch'
+      : derivedHdrKind === 'folder' && pathKinds.dv === 'folder'
+        ? 'batch'
+        : 'single';
+
+  const applyPreset = useCallback((presetId: string) => {
+    const preset = presets.find(item => item.id === presetId);
+    if (!preset) return;
+    setConfig(preset.config);
+    setToolPaths(preset.toolPaths);
+    setDvDelayInput(preset.dvDelayInput || '');
+    setHdr10plusDelayInput(preset.hdr10plusDelayInput || '');
+    setShowDelays(preset.showDelays ?? false);
+    setPathKinds({
+      hdr: inferPathKind(preset.config.hdrPath),
+      hdr10plus: inferPathKind(preset.config.hdr10plusPath),
+      dv: inferPathKind(preset.config.dvPath),
+      output: inferPathKind(preset.config.outputPath),
+    });
+  }, [inferPathKind, presets]);
+
+  const savePreset = useCallback(() => {
+    const name = window.prompt('Preset name:');
+    if (!name) return;
+    const id = crypto.randomUUID();
+    const newPreset = {
+      id,
+      name,
+      config,
+      toolPaths,
+      dvDelayInput,
+      hdr10plusDelayInput,
+      showDelays,
+    };
+    setPresets(prev => [...prev, newPreset]);
+    setSelectedPresetId(id);
+  }, [config, toolPaths, dvDelayInput, hdr10plusDelayInput, showDelays]);
+
+  const handlePresetChange = useCallback((value: string) => {
+    if (value === '__save__') {
+      savePreset();
+      return;
+    }
+    setSelectedPresetId(value);
+    applyPreset(value);
+  }, [applyPreset, savePreset]);
+
+  const handleDropAssign = useCallback((path: string, isFolder: boolean, name?: string) => {
+    const label = name?.toLowerCase() || path.toLowerCase();
+    const isHdr10plus = label.includes('hdr10') || label.includes('hdr10+') || label.includes('hdr10plus');
+    const isDv = label.includes('dv') || label.includes('dovi') || label.includes('dolby');
+    const isHdr = label.includes('hdr');
+
+    if (isHdr10plus) {
+      setConfig(prev => ({ ...prev, hdr10plusPath: path, hdrPath: '' }));
+      setPathKinds(prev => ({ ...prev, hdr10plus: isFolder ? 'folder' : 'file' }));
+      return;
+    }
+
+    if (isDv || (!config.dvPath && !isHdr)) {
+      setConfig(prev => ({ ...prev, dvPath: path }));
+      setPathKinds(prev => ({ ...prev, dv: isFolder ? 'folder' : 'file' }));
+      return;
+    }
+
+    if (isHdr || !config.hdrPath) {
+      setConfig(prev => ({ ...prev, hdrPath: path, hdr10plusPath: '' }));
+      setPathKinds(prev => ({ ...prev, hdr: isFolder ? 'folder' : 'file' }));
+      return;
+    }
+  }, [config.dvPath, config.hdrPath]);
+
+  const dropHandlers = useMemo(() => {
+    return {
+      onDragEnter: (event: React.DragEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsDropActive(true);
+      },
+      onDragOver: (event: React.DragEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsDropActive(true);
+      },
+      onDragLeave: (event: React.DragEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsDropActive(false);
+      },
+      onDrop: (event: React.DragEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setIsDropActive(false);
+        const items = Array.from(event.dataTransfer.items || []);
+        if (items.length > 0) {
+          const item = items[0];
+          const entry = (item as unknown as { webkitGetAsEntry?: () => { isDirectory: boolean; name: string } | null })
+            .webkitGetAsEntry?.();
+          const file = item.getAsFile();
+          if (file) {
+            const path = (file as unknown as { path?: string }).path || file.name;
+            const isFolder = !!entry?.isDirectory;
+            handleDropAssign(path, isFolder, entry?.name || file.name);
+            return;
+          }
+        }
+        const files = Array.from(event.dataTransfer.files || []);
+        if (files.length > 0) {
+          const file = files[0];
+          const path = (file as unknown as { path?: string }).path || file.name;
+          handleDropAssign(path, false, file.name);
+        }
+      },
+    };
+  }, [handleDropAssign]);
 
   const addToQueue = useCallback(() => {
-    if (!config.hdrPath || !config.dvPath) return;
+    if (!derivedHdrPath || !config.dvPath) return;
 
     const isBatch = derivedMode === 'batch';
-    const hdrLabel = config.hdrPath.split('\\').filter(Boolean).pop() || config.hdrPath;
+    const hdrLabel = derivedHdrPath.split('\\').filter(Boolean).pop() || derivedHdrPath;
     const dvLabel = config.dvPath.split('\\').filter(Boolean).pop() || config.dvPath;
 
     const outputFile = isBatch
@@ -241,7 +464,7 @@ export function HybridDVHDRTool() {
       hdrFile: hdrLabel,
       dvFile: dvLabel,
       outputFile,
-      hdrPath: config.hdrPath,
+      hdrPath: derivedHdrPath,
       dvPath: config.dvPath,
       outputPath: isBatch ? (config.outputPath || '') : outputFile,
       status: 'pending',
@@ -250,20 +473,30 @@ export function HybridDVHDRTool() {
     
     setQueue(prev => [...prev, newFile]);
     setSelectedQueueIds(prev => new Set(prev).add(newFile.id));
-    setConfig(prev => ({ ...prev, hdrPath: '', dvPath: '', outputPath: '' }));
+    setConfig(prev => ({ ...prev, hdrPath: '', hdr10plusPath: '', dvPath: '', outputPath: '' }));
     addLog('info', `Added to queue: ${newFile.outputFile}`);
-  }, [config, addLog, derivedMode, toolPaths.defaultOutput]);
+  }, [config, addLog, derivedMode, toolPaths.defaultOutput, derivedHdrPath]);
 
   const browseFile = useCallback(
-    async (target: 'hdr' | 'dv' | 'output') => {
+    async (target: 'hdr' | 'dv' | 'output' | 'hdr10plus') => {
       if (!isTauri()) {
         const manual = window.prompt('Enter a file path:');
         if (manual) {
-          setConfig(prev => ({
-            ...prev,
-            [target === 'hdr' ? 'hdrPath' : target === 'dv' ? 'dvPath' : 'outputPath']: manual,
-          }));
-          setPathKinds(prev => ({ ...prev, [target]: 'file' }));
+          setConfig(prev => {
+            if (target === 'hdr10plus') {
+              return { ...prev, hdr10plusPath: manual, hdrPath: '' };
+            }
+            return {
+              ...prev,
+              ...(target === 'hdr' ? { hdr10plusPath: '' } : null),
+              [target === 'hdr' ? 'hdrPath' : target === 'dv' ? 'dvPath' : 'outputPath']: manual,
+            };
+          });
+          if (target !== 'hdr10plus') {
+            setPathKinds(prev => ({ ...prev, [target]: 'file' }));
+          } else {
+            setPathKinds(prev => ({ ...prev, hdr10plus: 'file' }));
+          }
         }
         return;
       }
@@ -283,30 +516,50 @@ export function HybridDVHDRTool() {
       const selected = await openDialog({
         directory: false,
         multiple: false,
-        filters: [{ name: 'Video', extensions: ['mkv', 'hevc'] }],
+        filters: [{ name: 'Video', extensions: ['mkv', 'mp4', 'hevc', 'h265'] }],
       });
 
       if (typeof selected === 'string') {
-        setConfig(prev => ({
-          ...prev,
-          [target === 'hdr' ? 'hdrPath' : target === 'dv' ? 'dvPath' : 'outputPath']: selected,
-        }));
-        setPathKinds(prev => ({ ...prev, [target]: 'file' }));
+        setConfig(prev => {
+          if (target === 'hdr10plus') {
+            return { ...prev, hdr10plusPath: selected, hdrPath: '' };
+          }
+          return {
+            ...prev,
+            ...(target === 'hdr' ? { hdr10plusPath: '' } : null),
+            [target === 'hdr' ? 'hdrPath' : target === 'dv' ? 'dvPath' : 'outputPath']: selected,
+          };
+        });
+        if (target !== 'hdr10plus') {
+          setPathKinds(prev => ({ ...prev, [target]: 'file' }));
+        } else {
+          setPathKinds(prev => ({ ...prev, hdr10plus: 'file' }));
+        }
       }
     },
     [config.outputPath],
   );
 
   const browseFolder = useCallback(
-    async (target: 'hdr' | 'dv' | 'output') => {
+    async (target: 'hdr' | 'dv' | 'output' | 'hdr10plus') => {
       if (!isTauri()) {
         const manual = window.prompt('Enter a folder path:');
         if (manual) {
-          setConfig(prev => ({
-            ...prev,
-            [target === 'hdr' ? 'hdrPath' : target === 'dv' ? 'dvPath' : 'outputPath']: manual,
-          }));
-          setPathKinds(prev => ({ ...prev, [target]: 'folder' }));
+          setConfig(prev => {
+            if (target === 'hdr10plus') {
+              return { ...prev, hdr10plusPath: manual, hdrPath: '' };
+            }
+            return {
+              ...prev,
+              ...(target === 'hdr' ? { hdr10plusPath: '' } : null),
+              [target === 'hdr' ? 'hdrPath' : target === 'dv' ? 'dvPath' : 'outputPath']: manual,
+            };
+          });
+          if (target !== 'hdr10plus') {
+            setPathKinds(prev => ({ ...prev, [target]: 'folder' }));
+          } else {
+            setPathKinds(prev => ({ ...prev, hdr10plus: 'folder' }));
+          }
         }
         return;
       }
@@ -317,11 +570,21 @@ export function HybridDVHDRTool() {
       });
 
       if (typeof selected === 'string') {
-        setConfig(prev => ({
-          ...prev,
-          [target === 'hdr' ? 'hdrPath' : target === 'dv' ? 'dvPath' : 'outputPath']: selected,
-        }));
-        setPathKinds(prev => ({ ...prev, [target]: 'folder' }));
+        setConfig(prev => {
+          if (target === 'hdr10plus') {
+            return { ...prev, hdr10plusPath: selected, hdrPath: '' };
+          }
+          return {
+            ...prev,
+            ...(target === 'hdr' ? { hdr10plusPath: '' } : null),
+            [target === 'hdr' ? 'hdrPath' : target === 'dv' ? 'dvPath' : 'outputPath']: selected,
+          };
+        });
+        if (target !== 'hdr10plus') {
+          setPathKinds(prev => ({ ...prev, [target]: 'folder' }));
+        } else {
+          setPathKinds(prev => ({ ...prev, hdr10plus: 'folder' }));
+        }
       }
     },
     [],
@@ -395,16 +658,12 @@ export function HybridDVHDRTool() {
   }, [config, queue, addLog, derivedMode]);
 
   const handleStart = async () => {
-    if (derivedMode === 'single' && (!config.hdrPath || !config.dvPath)) {
-      addLog('error', 'Please specify both HDR and DV source paths');
+    if (derivedMode === 'single' && (!derivedHdrPath || !config.dvPath)) {
+      addLog('error', 'Please specify HDR/HDR10+ and DV source paths');
       return;
     }
     if (derivedMode === 'batch' && queue.length === 0) {
       addLog('error', 'Please add files to the queue first');
-      return;
-    }
-    if (derivedMode === 'batch' && selectedQueueIds.size === 0) {
-      addLog('error', 'Please select at least one queue item');
       return;
     }
 
@@ -420,14 +679,24 @@ export function HybridDVHDRTool() {
     fileMetaRef.current.clear();
 
     const queueToProcess = derivedMode === 'batch'
-      ? queue.filter(item => selectedQueueIds.has(item.id))
+      ? (selectedQueueIds.size > 0 ? queue.filter(item => selectedQueueIds.has(item.id)) : queue)
       : [];
+
+    const parseDelay = (value: string) => {
+      const trimmed = value.trim();
+      if (trimmed === '' || trimmed === '+' || trimmed === '-') return 0;
+      const parsed = Number.parseFloat(trimmed);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
 
     const request: ProcessingRequest = {
       mode,
-      hdrPath: config.hdrPath,
+      hdrPath: derivedHdrPath,
       dvPath: config.dvPath,
       outputPath: config.outputPath,
+      hdr10plusPath: config.hdr10plusPath,
+      dvDelayMs: parseDelay(dvDelayInput),
+      hdr10plusDelayMs: parseDelay(hdr10plusDelayInput),
       keepTempFiles: config.keepTempFiles,
       parallelTasks: config.parallelTasks,
       toolPaths,
@@ -468,6 +737,18 @@ export function HybridDVHDRTool() {
     setSelectedQueueIds(new Set());
   };
 
+  const handleReorderQueue = useCallback((sourceId: string, targetId: string) => {
+    setQueue(prev => {
+      const sourceIndex = prev.findIndex(item => item.id === sourceId);
+      const targetIndex = prev.findIndex(item => item.id === targetId);
+      if (sourceIndex < 0 || targetIndex < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      return next;
+    });
+  }, []);
+
   const isProcessing = status === 'processing';
 
   return (
@@ -487,31 +768,63 @@ export function HybridDVHDRTool() {
             </p>
           </div>
         </div>
-        <ToolSettings 
-          toolPaths={toolPaths} 
-          onSave={setToolPaths}
-          parallelTasks={config.parallelTasks}
-          onParallelTasksChange={(v) => setConfig(prev => ({ ...prev, parallelTasks: v }))}
-          keepTempFiles={config.keepTempFiles}
-          onKeepTempFilesChange={(v) => setConfig(prev => ({ ...prev, keepTempFiles: v }))}
-        />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedPresetId}
+              onChange={(e) => handlePresetChange(e.target.value)}
+              className="h-9 rounded-md border border-border bg-muted px-3 text-xs text-foreground"
+              title="Presets"
+            >
+              <option value="">Presets</option>
+              {presets.map(preset => (
+                <option key={preset.id} value={preset.id}>{preset.name}</option>
+              ))}
+              <option value="__save__">Save new preset...</option>
+            </select>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={savePreset}
+            >
+              Save
+            </Button>
+          </div>
+          <ToolSettings 
+            toolPaths={toolPaths} 
+            onSave={setToolPaths}
+            parallelTasks={config.parallelTasks}
+            onParallelTasksChange={(v) => setConfig(prev => ({ ...prev, parallelTasks: v }))}
+            keepTempFiles={config.keepTempFiles}
+            onKeepTempFilesChange={(v) => setConfig(prev => ({ ...prev, keepTempFiles: v }))}
+          />
+        </div>
       </div>
 
       {/* Mode Tabs */}
-      <div className="mb-6 p-4 rounded-lg border border-border bg-card space-y-4">
-          <FileInput
-            label="HDR Source (file or folder)"
-            value={config.hdrPath}
-            onChange={(v) => {
-              setConfig(prev => ({ ...prev, hdrPath: v }));
-              setPathKinds(prev => ({ ...prev, hdr: v.endsWith('\\') || v.endsWith('/') ? 'folder' : 'file' }));
-            }}
-            placeholder={derivedMode === 'batch' ? 'C:\\Videos\\HDR\\' : 'C:\\Videos\\movie.hdr.mkv'}
-            icon="hdr"
-            disabled={isProcessing}
-            onBrowseFile={() => browseFile('hdr')}
-            onBrowseFolder={() => browseFolder('hdr')}
-          />
+      <div
+        className="mb-6 p-4 rounded-lg border border-border bg-card space-y-4 relative"
+        {...dropHandlers}
+      >
+        {isDropActive && (
+          <div className="absolute inset-0 z-10 rounded-lg border-2 border-primary/60 bg-primary/5 pointer-events-none" />
+        )}
+          {!config.hdr10plusPath && (
+            <FileInput
+              label="HDR Source (file or folder)"
+              value={config.hdrPath}
+              onChange={(v) => {
+                setConfig(prev => ({ ...prev, hdrPath: v, hdr10plusPath: '' }));
+                setPathKinds(prev => ({ ...prev, hdr: v.endsWith('\\') || v.endsWith('/') ? 'folder' : 'file' }));
+              }}
+              placeholder={derivedMode === 'batch' ? 'C:\\Videos\\HDR\\' : 'C:\\Videos\\movie.hdr.mkv'}
+              icon="hdr"
+              disabled={isProcessing}
+              onBrowseFile={() => browseFile('hdr')}
+              onBrowseFolder={() => browseFolder('hdr')}
+            />
+          )}
         
           <FileInput
             label="Dolby Vision (file or folder)"
@@ -526,6 +839,25 @@ export function HybridDVHDRTool() {
             onBrowseFile={() => browseFile('dv')}
             onBrowseFolder={() => browseFolder('dv')}
           />
+
+          {!config.hdrPath && (
+            <FileInput
+              label="HDR10+ Source (file or folder)"
+              value={config.hdr10plusPath}
+              onChange={(v) => {
+                setConfig(prev => ({ ...prev, hdr10plusPath: v, hdrPath: '' }));
+                setPathKinds(prev => ({
+                  ...prev,
+                  hdr10plus: v.endsWith('\\') || v.endsWith('/') ? 'folder' : 'file',
+                }));
+              }}
+              placeholder={derivedMode === 'batch' ? 'C:\\Videos\\HDR10+\\' : 'C:\\Videos\\movie.hdr10plus.mkv'}
+              icon="hdr"
+              disabled={isProcessing}
+              onBrowseFile={() => browseFile('hdr10plus')}
+              onBrowseFolder={() => browseFolder('hdr10plus')}
+            />
+          )}
         
           <FileInput
             label="Output (file or folder)"
@@ -541,11 +873,50 @@ export function HybridDVHDRTool() {
             onBrowseFolder={() => browseFolder('output')}
           />
 
+          <div className="space-y-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full justify-between"
+              onClick={() => setShowDelays(prev => !prev)}
+              disabled={isProcessing}
+            >
+              Add delay?
+              <span className="text-xs">{showDelays ? '▲' : '▼'}</span>
+            </Button>
+            {showDelays && (
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-sm">Dolby Vision Delay (ms)</Label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={dvDelayInput}
+                    onChange={(e) => setDvDelayInput(e.target.value)}
+                    disabled={isProcessing}
+                    className="bg-muted border-border font-mono text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">HDR10+ Delay (ms)</Label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={hdr10plusDelayInput}
+                    onChange={(e) => setHdr10plusDelayInput(e.target.value)}
+                    disabled={isProcessing}
+                    className="bg-muted border-border font-mono text-sm"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
         {derivedMode === 'batch' && (
           <Button
             variant="secondary"
             className="w-full"
-            disabled={isProcessing || !config.hdrPath || !config.dvPath}
+            disabled={isProcessing || !derivedHdrPath || !config.dvPath}
             onClick={addToQueue}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -561,6 +932,7 @@ export function HybridDVHDRTool() {
             files={queue} 
             fileProgress={fileProgress}
             selectedIds={selectedQueueIds}
+            onReorder={handleReorderQueue}
             onToggle={(id) => {
               setSelectedQueueIds(prev => {
                 const next = new Set(prev);
@@ -608,7 +980,7 @@ export function HybridDVHDRTool() {
             className="flex-1 glow-primary"
             disabled={
               derivedMode === 'single' 
-                ? !config.hdrPath || !config.dvPath
+                ? !derivedHdrPath || !config.dvPath
                 : queue.length === 0 || selectedQueueIds.size === 0
             }
           >

@@ -1,5 +1,5 @@
-import { Check } from 'lucide-react';
-import { useState } from 'react';
+import { Check, GripVertical } from 'lucide-react';
+import { useRef, useState } from 'react';
 import type { QueueFile, FileProgressEntry } from './types';
 
 interface FileQueueProps {
@@ -8,9 +8,13 @@ interface FileQueueProps {
   selectedIds: Set<string>;
   onToggle: (id: string) => void;
   onToggleAll: () => void;
+  onReorder: (sourceId: string, targetId: string) => void;
 }
 
-export function FileQueue({ files, fileProgress, selectedIds, onToggle, onToggleAll }: FileQueueProps) {
+export function FileQueue({ files, fileProgress, selectedIds, onToggle, onToggleAll, onReorder }: FileQueueProps) {
+  const draggingIdRef = useRef<string | null>(null);
+  const [showFiles, setShowFiles] = useState(false);
+
   if (files.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border p-8 text-center">
@@ -32,7 +36,21 @@ export function FileQueue({ files, fileProgress, selectedIds, onToggle, onToggle
   const activeWorkers = files.reduce((sum, file) => sum + (file.activeWorkers || 0), 0);
   const allSelected = selectedIds.size > 0 && selectedIds.size === files.length;
   const showSelectionControls = files.length > 1;
-  const [showFiles, setShowFiles] = useState(false);
+
+  const statusPill = (label: string, value: number, tone: 'default' | 'success' | 'warning' | 'danger') => {
+    const toneClass = {
+      default: 'border-muted-foreground/30 text-muted-foreground',
+      success: 'border-emerald-400/40 text-emerald-300',
+      warning: 'border-amber-400/40 text-amber-300',
+      danger: 'border-red-400/40 text-red-300',
+    }[tone];
+
+    return (
+      <span className={`rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wide ${toneClass}`}>
+        {label} {value}
+      </span>
+    );
+  };
 
   const formatEta = (seconds?: number) => {
     if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return null;
@@ -43,21 +61,25 @@ export function FileQueue({ files, fileProgress, selectedIds, onToggle, onToggle
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden">
-      <div className="px-3 py-2 bg-muted/50 border-b border-border flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Processing Queue
-        </span>
+    <div className="rounded-xl border border-border bg-card overflow-hidden shadow-[0_10px_30px_-20px_rgba(0,0,0,0.6)]">
+      <div className="px-4 py-3 bg-gradient-to-r from-muted/40 via-muted/60 to-muted/20 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">
-            Active {processingCount} • Pending {pendingCount} • Done {completedCount}
-            {errorCount > 0 ? ` • Errors ${errorCount}` : ''}
-            {activeWorkers > 0 ? ` • Workers ${activeWorkers}` : ''}
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.2em]">
+            Processing Queue
           </span>
+          <div className="flex items-center gap-2">
+            {statusPill('Active', processingCount, 'success')}
+            {statusPill('Pending', pendingCount, 'default')}
+            {statusPill('Done', completedCount, 'default')}
+            {errorCount > 0 && statusPill('Errors', errorCount, 'danger')}
+            {activeWorkers > 0 && statusPill('Workers', activeWorkers, 'warning')}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
           {showSelectionControls && (
             <button
               type="button"
-              className="text-xs text-primary underline underline-offset-4"
+              className="rounded-full border border-primary/40 px-3 py-1 text-[11px] font-medium text-primary hover:border-primary hover:bg-primary/10"
               onClick={onToggleAll}
             >
               {allSelected ? 'Unselect All' : 'Select All'}
@@ -65,7 +87,7 @@ export function FileQueue({ files, fileProgress, selectedIds, onToggle, onToggle
           )}
           <button
             type="button"
-            className="text-xs text-primary underline underline-offset-4"
+            className="rounded-full border border-muted-foreground/30 px-3 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-muted-foreground/60"
             onClick={() => setShowFiles(prev => !prev)}
           >
             {showFiles ? 'Hide Files' : 'Show Files'}
@@ -73,12 +95,44 @@ export function FileQueue({ files, fileProgress, selectedIds, onToggle, onToggle
         </div>
       </div>
       
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-border/70">
         {files.map((file) => {
           const isSelected = selectedIds.has(file.id);
+          const isActive = file.status === 'processing';
+          const etaLabel = formatEta(file.etaSeconds);
+          const stepLabel = file.currentStep
+            ? file.currentStep
+                .replace(/^\d+\/\d+\s+/, '')
+                .split(' - ')
+                .pop()
+            : undefined;
           return (
-            <div key={file.id} className="p-3">
+            <div
+              key={file.id}
+              className={`px-4 py-3 transition-colors ${
+                isActive ? 'bg-primary/5' : 'hover:bg-muted/30'
+              }`}
+              draggable
+              onDragStart={(event) => {
+                draggingIdRef.current = file.id;
+                event.dataTransfer.setData('text/plain', file.id);
+                event.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragEnd={() => {
+                draggingIdRef.current = null;
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                const sourceId = event.dataTransfer.getData('text/plain') || draggingIdRef.current;
+                if (sourceId && sourceId !== file.id) {
+                  onReorder(sourceId, file.id);
+                }
+                draggingIdRef.current = null;
+              }}
+            >
               <div className="flex items-center gap-3">
+                <GripVertical className="h-4 w-4 text-muted-foreground/40" />
                 {showSelectionControls && (
                   <button
                     type="button"
@@ -91,13 +145,22 @@ export function FileQueue({ files, fileProgress, selectedIds, onToggle, onToggle
                   </button>
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-mono truncate text-foreground">{file.outputFile}</span>
-                    <span className="font-mono text-primary">{file.progress}%</span>
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <div className="min-w-0">
+                      <div className="font-mono truncate text-foreground">{file.outputFile}</div>
+                      <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <span className="uppercase tracking-[0.2em]">{file.status}</span>
+                        {stepLabel && <span className="truncate">{stepLabel}</span>}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono text-primary">{file.progress}%</div>
+                      {etaLabel && <div className="text-[11px] text-muted-foreground">ETA {etaLabel}</div>}
+                    </div>
                   </div>
-                  <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-primary transition-all duration-300 ease-out"
+                      className="h-full bg-gradient-to-r from-primary/70 via-primary to-emerald-300 transition-all duration-300 ease-out"
                       style={{ width: `${file.progress}%` }}
                     />
                   </div>
@@ -109,7 +172,7 @@ export function FileQueue({ files, fileProgress, selectedIds, onToggle, onToggle
       </div>
 
       {showFiles && (
-        <div className="border-t border-border max-h-64 overflow-y-auto divide-y divide-border">
+        <div className="border-t border-border max-h-64 overflow-y-auto divide-y divide-border/70 bg-muted/10">
           {(fileProgress.length ? fileProgress : files.map(file => ({
             id: file.id,
             queueId: file.id,
@@ -117,7 +180,7 @@ export function FileQueue({ files, fileProgress, selectedIds, onToggle, onToggle
             progress: file.progress,
             etaSeconds: file.etaSeconds,
           })) ).map((file) => (
-            <div key={file.id} className="p-3">
+            <div key={file.id} className="px-4 py-3">
               <div className="flex items-center justify-between gap-2 text-xs">
                 <span className="font-mono truncate text-foreground">{file.name}</span>
                 <span className="font-mono text-primary">
@@ -127,7 +190,7 @@ export function FileQueue({ files, fileProgress, selectedIds, onToggle, onToggle
               </div>
               <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-primary transition-all duration-300 ease-out"
+                  className="h-full bg-gradient-to-r from-primary/70 via-primary to-emerald-300 transition-all duration-300 ease-out"
                   style={{ width: `${file.progress}%` }}
                 />
               </div>

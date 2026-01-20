@@ -13,6 +13,9 @@ pub struct ToolPaths {
     pub mkvmerge: String,
     pub mkvextract: String,
     pub ffmpeg: String,
+    pub mediainfo: String,
+    pub mp4box: String,
+    pub hdr10plus_tool: String,
     pub default_output: String,
 }
 
@@ -44,6 +47,9 @@ pub struct ProcessingRequest {
     pub hdr_path: String,
     pub dv_path: String,
     pub output_path: String,
+    pub hdr10plus_path: String,
+    pub dv_delay_ms: f64,
+    pub hdr10plus_delay_ms: f64,
     pub keep_temp_files: bool,
     pub parallel_tasks: usize,
     pub tool_paths: ToolPaths,

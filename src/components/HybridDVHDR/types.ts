@@ -15,6 +15,9 @@ export interface ToolPaths {
   mkvmerge: string;
   mkvextract: string;
   ffmpeg: string;
+  mediainfo: string;
+  mp4box: string;
+  hdr10plusTool: string;
   defaultOutput: string;
 }
 
@@ -38,6 +41,9 @@ export interface ProcessingConfig {
   hdrPath: string;
   dvPath: string;
   outputPath: string;
+  hdr10plusPath: string;
+  dvDelayMs: number;
+  hdr10plusDelayMs: number;
   mode: ProcessingMode;
   parallelTasks: number;
   keepTempFiles: boolean;
@@ -55,6 +61,9 @@ export interface ProcessingRequest {
   hdrPath: string;
   dvPath: string;
   outputPath: string;
+  hdr10plusPath: string;
+  dvDelayMs: number;
+  hdr10plusDelayMs: number;
   keepTempFiles: boolean;
   parallelTasks: number;
   toolPaths: ToolPaths;
