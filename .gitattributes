@@ -1,0 +1,5 @@
+# Prettier enforces LF; keep checkouts LF on Windows runners too.
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.icns binary
