@@ -2,14 +2,16 @@ import { create } from 'zustand'
 import type {
   FileEntry,
   Job,
+  JobFilter,
   LogEntry,
   LogLevel,
+  PathKind,
   RunStatus,
   SourceInfo,
   ToolStatus,
 } from '@/types'
 
-export type PathKind = 'file' | 'folder' | 'unknown'
+export type { PathKind }
 export type ProbeState =
   | { state: 'loading' }
   | { state: 'ok'; info: SourceInfo }
@@ -24,32 +26,8 @@ const MAX_LOG_LINES = 5000
 const SOURCE_RE =
   /^(dovi_tool|hdr10plus_tool|mkvmerge|mkvextract|ffmpeg|ffprobe|MediaInfo|MP4Box)\b/i
 
-export interface JobSetup {
-  hdrPath: string
-  hdrKind: PathKind
-  dvPath: string
-  dvKind: PathKind
-  hdr10plusPath: string
-  outputPath: string
-  outputKind: PathKind
-  dvDelayMs: string
-  hdr10plusDelayMs: string
-}
-
-const emptySetup: JobSetup = {
-  hdrPath: '',
-  hdrKind: 'unknown',
-  dvPath: '',
-  dvKind: 'unknown',
-  hdr10plusPath: '',
-  outputPath: '',
-  outputKind: 'unknown',
-  dvDelayMs: '',
-  hdr10plusDelayMs: '',
-}
-
 interface AppState {
-  setup: JobSetup
+  filter: JobFilter
   probes: Record<string, ProbeState>
   jobs: Job[]
   expandedJobs: Set<string>
@@ -68,16 +46,13 @@ interface AppState {
   updateProgress: number | null
   updateSplashDismissed: boolean
 
-  setSetup: (patch: Partial<JobSetup>) => void
-  resetSetup: () => void
+  setFilter: (filter: JobFilter) => void
   setProbe: (path: string, probe: ProbeState) => void
   addJob: (job: Job) => void
   updateJob: (id: string, patch: Partial<Job>) => void
   removeJob: (id: string) => void
   removeFinishedJobs: () => void
   clearQueue: () => void
-  setJobSelected: (id: string, selected: boolean) => void
-  setAllSelected: (selected: boolean) => void
   toggleExpanded: (id: string) => void
   setExpanded: (id: string, expanded: boolean) => void
   upsertFile: (entry: FileEntry) => void
@@ -100,7 +75,7 @@ interface AppState {
 let logSeq = 0
 
 export const useAppStore = create<AppState>()((set, get) => ({
-  setup: emptySetup,
+  filter: 'all',
   probes: {},
   jobs: [],
   expandedJobs: new Set(),
@@ -119,15 +94,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
   updateProgress: null,
   updateSplashDismissed: false,
 
-  setSetup: patch => set(s => ({ setup: { ...s.setup, ...patch } })),
-  resetSetup: () =>
-    set(s => ({
-      setup: {
-        ...emptySetup,
-        dvDelayMs: s.setup.dvDelayMs,
-        hdr10plusDelayMs: s.setup.hdr10plusDelayMs,
-      },
-    })),
+  setFilter: filter => set({ filter }),
   setProbe: (path, probe) =>
     set(s => ({ probes: { ...s.probes, [path]: probe } })),
 
@@ -155,12 +122,6 @@ export const useAppStore = create<AppState>()((set, get) => ({
       }
     }),
   clearQueue: () => set({ jobs: [], files: {}, expandedJobs: new Set() }),
-  setJobSelected: (id, selected) =>
-    set(s => ({
-      jobs: s.jobs.map(j => (j.id === id ? { ...j, selected } : j)),
-    })),
-  setAllSelected: selected =>
-    set(s => ({ jobs: s.jobs.map(j => ({ ...j, selected })) })),
   toggleExpanded: id =>
     set(s => {
       const next = new Set(s.expandedJobs)

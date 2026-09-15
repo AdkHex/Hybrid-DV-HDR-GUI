@@ -13,22 +13,23 @@ interface SettingsState {
   toolPaths: ToolPaths
   parallelTasks: number
   keepTempFiles: boolean
+  defaultDvDelayMs: number
+  defaultHdr10plusDelayMs: number
   presets: Preset[]
   theme: ThemePreference
   notifyOnFinish: boolean
   soundOnFinish: boolean
   autoCheckUpdates: boolean
-  sidebarVisible: boolean
   logVisible: boolean
 
   setToolPaths: (paths: Partial<ToolPaths>) => void
   setParallelTasks: (n: number) => void
   setKeepTempFiles: (v: boolean) => void
+  setDefaultOffsets: (dv: number, hdr10plus: number) => void
   setTheme: (t: ThemePreference) => void
   setNotifyOnFinish: (v: boolean) => void
   setSoundOnFinish: (v: boolean) => void
   setAutoCheckUpdates: (v: boolean) => void
-  toggleSidebar: () => void
   toggleLog: () => void
   setLogVisible: (v: boolean) => void
   addPreset: (preset: Preset) => void
@@ -72,8 +73,9 @@ export const useSettingsStore = create<SettingsState>()(
       notifyOnFinish: true,
       soundOnFinish: false,
       autoCheckUpdates: true,
-      sidebarVisible: true,
-      logVisible: true,
+      defaultDvDelayMs: 0,
+      defaultHdr10plusDelayMs: 0,
+      logVisible: false,
 
       setToolPaths: paths =>
         set(s => ({ toolPaths: { ...s.toolPaths, ...paths } })),
@@ -82,11 +84,12 @@ export const useSettingsStore = create<SettingsState>()(
           parallelTasks: Math.min(MAX_PARALLEL, Math.max(1, Math.round(n))),
         }),
       setKeepTempFiles: keepTempFiles => set({ keepTempFiles }),
+      setDefaultOffsets: (defaultDvDelayMs, defaultHdr10plusDelayMs) =>
+        set({ defaultDvDelayMs, defaultHdr10plusDelayMs }),
       setTheme: theme => set({ theme }),
       setNotifyOnFinish: notifyOnFinish => set({ notifyOnFinish }),
       setSoundOnFinish: soundOnFinish => set({ soundOnFinish }),
       setAutoCheckUpdates: autoCheckUpdates => set({ autoCheckUpdates }),
-      toggleSidebar: () => set(s => ({ sidebarVisible: !s.sidebarVisible })),
       toggleLog: () => set(s => ({ logVisible: !s.logVisible })),
       setLogVisible: logVisible => set({ logVisible }),
       addPreset: preset => set(s => ({ presets: [...s.presets, preset] })),

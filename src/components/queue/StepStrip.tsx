@@ -9,6 +9,8 @@ interface StepStripProps {
   stepPercent?: number
   status: 'processing' | 'completed' | 'error' | 'pending'
   note?: string
+  /** Inside a card: no background, no border, no indent. */
+  bare?: boolean
 }
 
 /** One slim line listing the six pipeline steps and where this file is. */
@@ -17,9 +19,15 @@ export function StepStrip({
   stepPercent,
   status,
   note,
+  bare,
 }: StepStripProps) {
   return (
-    <div className="flex h-[34px] items-center overflow-hidden whitespace-nowrap border-b bg-muted/25 pl-[62px] pr-3 text-[11px] text-muted-foreground">
+    <div
+      className={cn(
+        'flex items-center overflow-hidden whitespace-nowrap text-[11px] text-muted-foreground',
+        bare ? 'mt-2.5' : 'h-[34px] border-b bg-muted/25 pl-[62px] pr-3'
+      )}
+    >
       {STEP_NAMES.map((name, i) => {
         const done = status === 'completed' || i < stepIndex
         const current = status !== 'completed' && i === stepIndex

@@ -67,18 +67,23 @@ export interface AppDefaults {
   toolPaths: ToolPaths
 }
 
-/** One entry in the queue: a file pair or a folder pair. */
+export type PathKind = 'file' | 'folder' | 'unknown'
+
+/**
+ * One card in the list: a base + donor pair (files or folders) with its own
+ * options. A pair with a slot still empty is kept in the list but not run.
+ */
 export interface Job {
   id: string
-  name: string
   hdrPath: string
+  hdrKind: PathKind
   dvPath: string
+  dvKind: PathKind
   hdr10plusPath: string
   outputPath: string
+  outputKind: PathKind
   dvDelayMs: number
   hdr10plusDelayMs: number
-  isFolderPair: boolean
-  selected: boolean
   status: JobStatus
   progress: number
   currentStep?: string
@@ -123,6 +128,7 @@ export interface Preset {
 }
 
 export type ThemePreference = 'system' | 'light' | 'dark'
+export type JobFilter = 'all' | 'waiting' | 'done' | 'failed'
 
 // ---- Backend payloads --------------------------------------------------
 

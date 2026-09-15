@@ -11,11 +11,13 @@ export function ProgressBar({
   status,
   label,
   indeterminate = false,
+  hidePercent = false,
 }: {
   percent: number
   status: JobStatus
   label?: string
   indeterminate?: boolean
+  hidePercent?: boolean
 }) {
   const pct = Math.min(100, Math.max(0, percent))
   const { fill, track } = JOB_STATUS[status]
@@ -41,9 +43,11 @@ export function ProgressBar({
           style={{ width: indeterminate ? '35%' : `${pct}%` }}
         />
       </div>
-      <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
-        {status === 'queued' ? '' : `${Math.round(pct)}%`}
-      </span>
+      {hidePercent ? null : (
+        <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+          {status === 'queued' ? '' : `${Math.round(pct)}%`}
+        </span>
+      )}
     </div>
   )
 }

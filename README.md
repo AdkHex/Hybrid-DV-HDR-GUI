@@ -26,8 +26,10 @@ Preferences → Tools shows what was found and can download the missing ones.
    (`mkvmerge`). Temp files sit next to the output and are removed unless
    "Keep temporary files" is on.
 
-Folder pairs are matched by name and run across parallel workers (Preferences →
-General).
+The window is a list of pair cards: drop files or folders anywhere and they are
+paired by name (HDR10 / HDR10+ with DV); each card carries its own HDR10+
+source, sync offsets and output. Folder pairs match their files by name and run
+across parallel workers (Preferences → General).
 
 ## Development
 

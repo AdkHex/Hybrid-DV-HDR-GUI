@@ -61,15 +61,12 @@ export default function App() {
     }
   }, [])
 
-  // ⌘/Ctrl shortcuts: 1 sidebar, 2 log, , preferences, Enter start.
+  // ⌘/Ctrl shortcuts: 2 or L toggles the log, comma opens preferences.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return
       const settings = useSettingsStore.getState()
-      if (e.key === '1') {
-        e.preventDefault()
-        settings.toggleSidebar()
-      } else if (e.key === '2') {
+      if (e.key === '2' || e.key === 'l') {
         e.preventDefault()
         settings.toggleLog()
       } else if (e.key === ',') {

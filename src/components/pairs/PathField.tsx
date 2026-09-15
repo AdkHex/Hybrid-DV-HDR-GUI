@@ -1,4 +1,4 @@
-import { ChevronDown, File, Folder, Plus } from 'lucide-react'
+import { ChevronDown, File, Folder } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { baseName } from '@/lib/paths'
 import {
@@ -8,37 +8,41 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { PathKind } from '@/store/app-store'
+import type { PathKind } from '@/types'
 
-interface PathPickerProps {
+interface PathFieldProps {
   value: string
   kind: PathKind
   placeholder: string
+  meta?: React.ReactNode
   disabled?: boolean
   onPickFile?: () => void
   onPickFolder?: () => void
+  onSwap?: () => void
   onClear: () => void
   fileLabel?: string
   folderLabel?: string
+  /** Show the full path when the value is a folder (folder names alone are ambiguous). */
+  showPath?: boolean
 }
 
-/**
- * A picker in the style of the sidebar controls in GDExplorer: dashed while
- * empty, the picked name once set, and a menu for file / folder / clear.
- */
-export function PathPicker({
+/** A picked path with a menu to change it: dashed while empty. */
+export function PathField({
   value,
   kind,
   placeholder,
+  meta,
   disabled,
   onPickFile,
   onPickFolder,
+  onSwap,
   onClear,
   fileLabel = 'Choose file…',
   folderLabel = 'Choose folder…',
-}: PathPickerProps) {
+  showPath,
+}: PathFieldProps) {
   const empty = !value
-  const Icon = empty ? Plus : kind === 'folder' ? Folder : File
+  const Icon = kind === 'folder' ? Folder : File
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={disabled}>
@@ -46,17 +50,24 @@ export function PathPicker({
           type="button"
           title={value || undefined}
           className={cn(
-            'flex h-10 w-full items-center gap-2 rounded-lg border px-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50',
+            'flex h-8 w-full min-w-0 items-center gap-2 rounded-md border px-2.5 text-left text-[13px] transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-60',
             empty
               ? 'border-dashed border-input text-muted-foreground'
-              : 'border-input text-foreground'
+              : 'border-input'
           )}
         >
-          <Icon className="size-4 shrink-0 text-muted-foreground" />
+          {!empty ? (
+            <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+          ) : null}
           <span className="min-w-0 flex-1 truncate">
-            {empty ? placeholder : baseName(value)}
+            {empty ? placeholder : showPath ? value : baseName(value)}
           </span>
-          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+          {meta ? (
+            <span className="shrink-0 text-[11px] text-muted-foreground">
+              {meta}
+            </span>
+          ) : null}
+          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
@@ -70,11 +81,14 @@ export function PathPicker({
             <Folder className="size-4" /> {folderLabel}
           </DropdownMenuItem>
         ) : null}
+        {onSwap || !empty ? <DropdownMenuSeparator /> : null}
+        {onSwap ? (
+          <DropdownMenuItem onSelect={onSwap}>
+            Swap base and donor
+          </DropdownMenuItem>
+        ) : null}
         {!empty ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={onClear}>Clear</DropdownMenuItem>
-          </>
+          <DropdownMenuItem onSelect={onClear}>Clear</DropdownMenuItem>
         ) : null}
       </DropdownMenuContent>
     </DropdownMenu>

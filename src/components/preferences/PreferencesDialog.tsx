@@ -91,6 +91,33 @@ function Row({
   )
 }
 
+function OffsetField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: number
+  onChange: (v: number) => void
+}) {
+  return (
+    <label className="flex h-9 items-center gap-1.5 rounded-md border border-input px-3 text-sm">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <input
+        inputMode="numeric"
+        value={value === 0 ? '' : value}
+        placeholder="0"
+        onChange={e => {
+          const n = Number.parseFloat(e.target.value)
+          onChange(Number.isFinite(n) ? n : 0)
+        }}
+        className="w-14 bg-transparent text-right outline-none"
+      />
+      <span className="text-xs text-muted-foreground">ms</span>
+    </label>
+  )
+}
+
 function GeneralPane() {
   const s = useSettingsStore()
   const setToolPaths = useSettingsStore(st => st.setToolPaths)
@@ -124,6 +151,23 @@ function GeneralPane() {
             />
           }
         />
+        <Row
+          label="Default sync offsets"
+          help="Filled into every new pair; each pair can change its own."
+        >
+          <div className="flex gap-2">
+            <OffsetField
+              label="DV"
+              value={s.defaultDvDelayMs}
+              onChange={v => s.setDefaultOffsets(v, s.defaultHdr10plusDelayMs)}
+            />
+            <OffsetField
+              label="HDR10+"
+              value={s.defaultHdr10plusDelayMs}
+              onChange={v => s.setDefaultOffsets(s.defaultDvDelayMs, v)}
+            />
+          </div>
+        </Row>
         <Row
           label="Default output folder"
           help="Used when a job has no output of its own. Files are named <base>.DV.HDR.H.265-NOGRP.mkv."
@@ -338,9 +382,10 @@ function PresetsPane() {
     keepTempFiles,
     setParallelTasks,
     setKeepTempFiles,
+    defaultDvDelayMs,
+    defaultHdr10plusDelayMs,
+    setDefaultOffsets,
   } = useSettingsStore()
-  const setup = useAppStore(s => s.setup)
-  const setSetup = useAppStore(s => s.setSetup)
   const [name, setName] = useState('')
 
   const save = () => {
@@ -351,8 +396,8 @@ function PresetsPane() {
       name: trimmed,
       parallelTasks,
       keepTempFiles,
-      dvDelayMs: Number.parseFloat(setup.dvDelayMs) || 0,
-      hdr10plusDelayMs: Number.parseFloat(setup.hdr10plusDelayMs) || 0,
+      dvDelayMs: defaultDvDelayMs,
+      hdr10plusDelayMs: defaultHdr10plusDelayMs,
     })
     setName('')
     toast.success(`Preset "${trimmed}" saved`)
@@ -396,12 +441,7 @@ function PresetsPane() {
                   onClick={() => {
                     setParallelTasks(p.parallelTasks)
                     setKeepTempFiles(p.keepTempFiles)
-                    setSetup({
-                      dvDelayMs: p.dvDelayMs ? String(p.dvDelayMs) : '',
-                      hdr10plusDelayMs: p.hdr10plusDelayMs
-                        ? String(p.hdr10plusDelayMs)
-                        : '',
-                    })
+                    setDefaultOffsets(p.dvDelayMs, p.hdr10plusDelayMs)
                     toast.success(`Applied "${p.name}"`)
                   }}
                 >

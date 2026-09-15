@@ -2,15 +2,18 @@ import { toast } from 'sonner'
 import { api, isTauri } from '@/lib/tauri'
 import { useAppStore } from '@/store/app-store'
 import { useSettingsStore } from '@/store/settings-store'
+import { canRun } from '@/lib/jobs'
 import type { ProcessingRequest } from '@/types'
 
-/** Start every selected queued/failed job. */
+/** Start every complete pair that has not finished yet. */
 export async function startQueue() {
   const app = useAppStore.getState()
   const settings = useSettingsStore.getState()
-  const jobs = app.jobs.filter(j => j.selected && j.status !== 'completed')
+  const jobs = app.jobs.filter(canRun)
   if (jobs.length === 0) {
-    toast('Nothing selected to process')
+    toast(
+      'Nothing to process — every pair needs a base and a Dolby Vision source'
+    )
     return
   }
   if (!isTauri()) {
@@ -27,7 +30,8 @@ export async function startQueue() {
       etaSeconds: undefined,
     })
     app.clearFilesForJob(job.id)
-    app.setExpanded(job.id, true)
+    // Options are locked while running; the progress section takes their place.
+    app.setExpanded(job.id, false)
   }
   app.setRunStatus('processing')
   app.setCancelling(false)
