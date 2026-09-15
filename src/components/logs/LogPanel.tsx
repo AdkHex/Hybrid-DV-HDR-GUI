@@ -5,7 +5,11 @@ import { cn } from '@/lib/utils'
 import { formatTime } from '@/lib/format'
 import { api, isTauri, pickSaveFile } from '@/lib/tauri'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import {
   Select,
   SelectContent,
@@ -32,9 +36,14 @@ const LEVEL_LABEL: Record<LogLevel, string> = {
 
 type LevelFilter = 'all' | 'warnings' | 'errors'
 
-function logText(entries: { time: number; level: LogLevel; source: string; message: string }[]) {
+function logText(
+  entries: { time: number; level: LogLevel; source: string; message: string }[]
+) {
   return entries
-    .map(e => `${formatTime(e.time)} ${LEVEL_LABEL[e.level].toUpperCase().padEnd(5)} ${e.source.padEnd(14)} ${e.message}`)
+    .map(
+      e =>
+        `${formatTime(e.time)} ${LEVEL_LABEL[e.level].toUpperCase().padEnd(5)} ${e.source.padEnd(14)} ${e.message}`
+    )
     .join('\n')
 }
 
@@ -56,7 +65,12 @@ export function LogPanel() {
   const visible = useMemo(
     () =>
       logs.filter(l => {
-        if (level === 'warnings' && l.level !== 'warning' && l.level !== 'error') return false
+        if (
+          level === 'warnings' &&
+          l.level !== 'warning' &&
+          l.level !== 'error'
+        )
+          return false
         if (level === 'errors' && l.level !== 'error') return false
         if (source !== 'all' && l.source !== source) return false
         return true
@@ -73,7 +87,8 @@ export function LogPanel() {
   const onScroll = () => {
     const el = scrollRef.current
     if (!el) return
-    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24
+    stickToBottom.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 24
   }
 
   const copy = async () => {
@@ -130,7 +145,13 @@ export function LogPanel() {
         <div className="ml-auto flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-foreground" onClick={() => void copy()} aria-label="Copy log">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 text-muted-foreground hover:text-foreground"
+                onClick={() => void copy()}
+                aria-label="Copy log"
+              >
                 <Copy className="size-3.5" />
               </Button>
             </TooltipTrigger>
@@ -139,7 +160,13 @@ export function LogPanel() {
           {isTauri() ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-foreground" onClick={() => void save()} aria-label="Save log">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 text-muted-foreground hover:text-foreground"
+                  onClick={() => void save()}
+                  aria-label="Save log"
+                >
                   <Download className="size-3.5" />
                 </Button>
               </TooltipTrigger>
@@ -148,7 +175,13 @@ export function LogPanel() {
           ) : null}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-foreground" onClick={clearLogs} aria-label="Clear log">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 text-muted-foreground hover:text-foreground"
+                onClick={clearLogs}
+                aria-label="Clear log"
+              >
                 <Trash2 className="size-3.5" />
               </Button>
             </TooltipTrigger>
@@ -156,7 +189,13 @@ export function LogPanel() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-foreground" onClick={() => setLogVisible(false)} aria-label="Hide log">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 text-muted-foreground hover:text-foreground"
+                onClick={() => setLogVisible(false)}
+                aria-label="Hide log"
+              >
                 <X className="size-3.5" />
               </Button>
             </TooltipTrigger>
@@ -166,19 +205,38 @@ export function LogPanel() {
           </Tooltip>
         </div>
       </div>
-      <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 select-text overflow-auto px-3 py-1.5">
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        className="min-h-0 flex-1 select-text overflow-auto px-3 py-1.5"
+      >
         {visible.length === 0 ? (
           <p className="py-6 text-center text-xs text-muted-foreground">
-            {logs.length === 0 ? 'Nothing logged yet. Tool output appears here while a job runs.' : 'No lines match the filter.'}
+            {logs.length === 0
+              ? 'Nothing logged yet. Tool output appears here while a job runs.'
+              : 'No lines match the filter.'}
           </p>
         ) : (
           <div className="font-mono text-[11px] leading-[1.5]">
             {visible.map(entry => (
               <div key={entry.seq} className="flex gap-2">
-                <span className="shrink-0 tabular-nums text-muted-foreground/70">{formatTime(entry.time)}</span>
-                <span className={cn('w-10 shrink-0 uppercase', LEVEL_TEXT[entry.level])}>{LEVEL_LABEL[entry.level]}</span>
-                <span className="w-[74px] shrink-0 truncate text-muted-foreground/70">{entry.source}</span>
-                <span className="whitespace-pre-wrap break-all">{entry.message}</span>
+                <span className="shrink-0 tabular-nums text-muted-foreground/70">
+                  {formatTime(entry.time)}
+                </span>
+                <span
+                  className={cn(
+                    'w-10 shrink-0 uppercase',
+                    LEVEL_TEXT[entry.level]
+                  )}
+                >
+                  {LEVEL_LABEL[entry.level]}
+                </span>
+                <span className="w-[74px] shrink-0 truncate text-muted-foreground/70">
+                  {entry.source}
+                </span>
+                <span className="whitespace-pre-wrap break-all">
+                  {entry.message}
+                </span>
               </div>
             ))}
           </div>
