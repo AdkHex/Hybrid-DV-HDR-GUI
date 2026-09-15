@@ -84,6 +84,7 @@ export interface Job {
   outputKind: PathKind
   dvDelayMs: number
   hdr10plusDelayMs: number
+  selected: boolean
   status: JobStatus
   progress: number
   currentStep?: string

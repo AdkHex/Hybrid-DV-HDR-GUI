@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { api, isTauri } from '@/lib/tauri'
-import { addPaths } from '@/lib/jobs'
+import { assignDroppedPaths } from '@/lib/jobs'
 import { useAppStore } from '@/store/app-store'
 
 /** Native drag-and-drop from the OS (DOM drag events never fire in Tauri). */
@@ -19,10 +19,14 @@ export function useFileDrop() {
         }
         store.setDropActive(false)
         if (event.payload.type !== 'drop') return
-        if (event.payload.paths.length === 0) return
+        if (
+          store.runStatus === 'processing' ||
+          event.payload.paths.length === 0
+        )
+          return
         try {
           const infos = await api.inspectPaths(event.payload.paths)
-          if (!cancelled) addPaths(infos)
+          if (!cancelled) assignDroppedPaths(infos)
         } catch (error) {
           store.addLog(
             'error',

@@ -27,7 +27,7 @@ interface PathFieldProps {
 }
 
 /** A picked path with a menu to change it: dashed while empty. */
-export function PathField({
+export function PathPicker({
   value,
   kind,
   placeholder,
@@ -50,14 +50,14 @@ export function PathField({
           type="button"
           title={value || undefined}
           className={cn(
-            'flex h-8 w-full min-w-0 items-center gap-2 rounded-md border px-2.5 text-left text-[13px] transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-60',
+            'flex h-11 w-full min-w-0 items-center gap-2.5 rounded-lg border px-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-60',
             empty
               ? 'border-dashed border-input text-muted-foreground'
               : 'border-input'
           )}
         >
           {!empty ? (
-            <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+            <Icon className="size-4 shrink-0 text-muted-foreground" />
           ) : null}
           <span className="min-w-0 flex-1 truncate">
             {empty ? placeholder : showPath ? value : baseName(value)}
@@ -67,7 +67,7 @@ export function PathField({
               {meta}
             </span>
           ) : null}
-          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">

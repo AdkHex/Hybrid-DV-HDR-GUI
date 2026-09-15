@@ -2,118 +2,83 @@
 <html lang="en" class="dark">
 <head>
 <meta charset="utf-8" />
-<title>Hybrid DV HDR — mockup v4</title>
+<title>Hybrid DV HDR — mockup v7 (GDExplorer style)</title>
 <style>
   :root {
-    --background: oklch(1 0 0); --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0); --muted: oklch(0.97 0 0); --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0); --border: oklch(0.922 0 0); --input: oklch(0.922 0 0);
-    --primary: oklch(0.205 0 0); --primary-foreground: oklch(0.985 0 0);
+    --background: oklch(1 0 0); --foreground: oklch(0.145 0 0); --card: oklch(1 0 0); --muted: oklch(0.97 0 0); --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0); --border: oklch(0.922 0 0); --input: oklch(0.922 0 0); --primary: oklch(0.205 0 0); --primary-foreground: oklch(0.985 0 0);
     --info: #1a63dc; --success: #00792c; --warning: #b34b00; --danger: #d4102a;
   }
   .dark {
-    --background: oklch(0.145 0 0); --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0); --muted: oklch(0.269 0 0); --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0); --border: oklch(1 0 0 / 10%); --input: oklch(1 0 0 / 15%);
-    --primary: oklch(0.922 0 0); --primary-foreground: oklch(0.205 0 0);
+    --background: oklch(0.145 0 0); --foreground: oklch(0.985 0 0); --card: oklch(0.205 0 0); --muted: oklch(0.269 0 0); --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0); --border: oklch(1 0 0 / 10%); --input: oklch(1 0 0 / 15%); --primary: oklch(0.922 0 0); --primary-foreground: oklch(0.205 0 0);
     --info: #5cb8ff; --success: #4ad968; --warning: #ffa056; --danger: #ff6165;
   }
   * { box-sizing: border-box; border-color: var(--border); }
   html, body { margin: 0; height: 100%; }
-  body { background: #000; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 13px; line-height: 1.5; color: var(--foreground); -webkit-font-smoothing: antialiased; user-select: none; }
+  body { background: #000; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 14px; line-height: 1.5; color: var(--foreground); -webkit-font-smoothing: antialiased; user-select: none; }
   button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
   svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
-  .muted { color: var(--muted-foreground); } .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .muted { color: var(--muted-foreground); } .xs { font-size: 12px; } .hidden { display: none !important; }
   .info { color: var(--info); } .success { color: var(--success); } .warning { color: var(--warning); } .danger { color: var(--danger); }
-  .hidden { display: none !important; }
 
-  .win { width: 1120px; height: 760px; margin: 20px auto; background: var(--background); border-radius: 11px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 24px 80px rgba(0,0,0,.6); border: 1px solid var(--border); position: relative; }
+  .win { width: 1200px; height: 800px; margin: 20px auto; background: var(--background); border-radius: 11px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 24px 80px rgba(0,0,0,.6); border: 1px solid var(--border); position: relative; }
   .titlebar { height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: relative; padding-right: 8px; }
-  .lights { display: flex; gap: 8px; padding: 0 12px; }
-  .lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; display: block; }
-  .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .lights { display: flex; gap: 8px; padding: 0 12px; } .lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; display: block; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
   .tb-title { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); display: flex; align-items: baseline; gap: 6px; }
-  .tb-title b { font-weight: 500; font-size: 13px; opacity: .8; } .tb-title span { font-size: 10px; color: var(--muted-foreground); }
+  .tb-title b { font-weight: 500; font-size: 14px; opacity: .8; } .tb-title span { font-size: 10px; color: var(--muted-foreground); }
   .icon-btn { width: 28px; height: 28px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; color: color-mix(in oklch, var(--foreground) 70%, transparent); position: relative; }
-  .icon-btn:hover { background: var(--accent); color: var(--foreground); }
-  .icon-btn.sm { width: 24px; height: 24px; } .icon-btn.sm svg { width: 13px; height: 13px; }
+  .icon-btn:hover { background: var(--accent); color: var(--foreground); } .icon-btn.on { color: var(--foreground); }
   .icon-btn .dot { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--warning); }
 
-  .btn { height: 32px; padding: 0 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; white-space: nowrap; }
-  .btn.secondary { background: var(--muted); } .btn.primary { background: var(--primary); color: var(--primary-foreground); }
-  .btn.outline { border: 1px solid var(--input); } .btn.ghost { color: var(--muted-foreground); } .btn.ghost:hover { background: var(--accent); color: var(--foreground); }
-  .btn.sm { height: 28px; padding: 0 10px; font-size: 12px; }
-  .btn:disabled { opacity: .45; }
+  .body { flex: 1; display: flex; min-height: 0; }
+  .sidebar { width: 350px; flex-shrink: 0; border-right: 1px solid var(--border); padding: 24px; overflow: auto; display: flex; flex-direction: column; gap: 22px; }
+  .lbl { font-size: 14px; color: var(--muted-foreground); margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .lbl small { font-size: 12px; }
+  .picker { height: 44px; width: 100%; border: 1px solid var(--input); border-radius: 8px; display: flex; align-items: center; gap: 10px; padding: 0 12px; }
+  .picker.unset { border-style: dashed; color: var(--muted-foreground); }
+  .picker .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .picker .c { color: var(--muted-foreground); }
+  .picker:hover { background: var(--accent); }
+  .under { margin-top: 6px; font-size: 12px; color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hr { height: 1px; background: var(--border); }
+  .offs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .inp { height: 36px; border: 1px solid var(--input); border-radius: 8px; padding: 0 10px; display: flex; align-items: center; gap: 6px; }
+  .inp input { flex: 1; width: 0; min-width: 0; background: none; border: 0; color: inherit; font: inherit; outline: none; }
+  .btn { height: 36px; padding: 0 14px; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px; font-weight: 500; white-space: nowrap; }
+  .btn.secondary { background: var(--muted); } .btn.outline { border: 1px solid var(--input); } .btn.ghost { color: var(--muted-foreground); } .btn.ghost:hover { background: var(--accent); color: var(--foreground); }
+  .btn.block { width: 100%; justify-content: center; } .btn:disabled { opacity: .5; }
+  .sidebar .grow { flex: 1; }
 
-  .toolbar { height: 52px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; gap: 8px; }
-  .toolbar .grp { display: flex; align-items: center; gap: 8px; }
-  .seg { display: inline-flex; border: 1px solid var(--input); border-radius: 8px; padding: 2px; font-size: 12px; }
-  .seg button { padding: 3px 10px; border-radius: 6px; color: var(--muted-foreground); } .seg button.on { background: var(--muted); color: var(--foreground); }
-
-  .list { flex: 1; overflow: auto; padding: 4px 24px 20px; display: flex; flex-direction: column; gap: 12px; }
-  .card { border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
-  .card .head { display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 14px; }
-  .card .head .caret { color: var(--muted-foreground); width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; } .card .head .caret:hover { background: var(--accent); }
-  .card .head .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
-  .card .head .title small { color: var(--muted-foreground); font-weight: 400; margin-left: 8px; }
-  .chip { font-size: 12px; display: inline-flex; align-items: center; gap: 5px; } .chip svg { width: 12px; height: 12px; }
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .content { flex: 1; min-height: 0; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+  .toolbar { display: flex; align-items: center; justify-content: space-between; }
+  .toolbar h2 { margin: 0; font-size: 16px; font-weight: 600; } .toolbar .s { margin-left: 8px; font-size: 13px; color: var(--muted-foreground); }
+  .toolbar .r { display: flex; align-items: center; gap: 8px; }
+  .card { border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .thead, .tr { display: grid; grid-template-columns: 44px minmax(0,1fr) 200px 190px 80px 44px; align-items: center; }
+  .thead { height: 40px; border-bottom: 1px solid var(--border); color: var(--muted-foreground); font-size: 13px; }
+  .thead > div, .tr > div { padding: 0 12px; min-width: 0; }
+  .tr { min-height: 52px; border-bottom: 1px solid var(--border); }
+  .tr.child { min-height: 40px; font-size: 13px; color: var(--muted-foreground); background: color-mix(in oklch, var(--muted) 25%, transparent); } .tr.child .nm { padding-left: 28px; }
+  .chk { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--input); display: inline-flex; align-items: center; justify-content: center; } .chk.on { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); } .chk svg { width: 10px; height: 10px; stroke-width: 3; }
+  .nm { display: flex; align-items: center; gap: 8px; } .nm svg { color: var(--muted-foreground); } .nm .t { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .nm .p { font-size: 12px; color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nm .caret { width: 20px; color: var(--muted-foreground); display: inline-flex; justify-content: center; }
+  .prog { display: flex; align-items: center; gap: 8px; } .bar { flex: 1; height: 6px; border-radius: 6px; background: color-mix(in oklch, var(--muted-foreground) 12%, transparent); overflow: hidden; position: relative; }
+  .bar i { position: absolute; inset: 0 auto 0 0; background: color-mix(in oklch, var(--muted-foreground) 30%, transparent); border-radius: 6px; } .bar.info i { background: var(--info); } .bar.success i { background: var(--success); } .bar.danger i { background: var(--danger); }
+  .prog .pct { width: 40px; text-align: right; font-size: 12px; color: var(--muted-foreground); }
+  .st { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; overflow: hidden; } .st svg { width: 13px; height: 13px; } .st .sub { color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; }
   .spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
-  .card .body { border-top: 1px solid var(--border); padding: 12px 14px 14px; display: grid; grid-template-columns: 96px 1fr; row-gap: 8px; column-gap: 12px; align-items: center; }
-  .lbl { font-size: 12px; color: var(--muted-foreground); }
-  .field { height: 32px; border: 1px solid var(--input); border-radius: 7px; display: flex; align-items: center; gap: 8px; padding: 0 10px; font-size: 13px; min-width: 0; }
-  .field:hover { background: var(--accent); }
-  .field .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .field.unset { border-style: dashed; color: var(--muted-foreground); }
-  .field .meta { font-size: 11px; color: var(--muted-foreground); white-space: nowrap; }
-  .field .chev { color: var(--muted-foreground); }
-  .field input { width: 54px; background: none; border: 0; color: inherit; font: inherit; outline: none; text-align: right; }
-  .field.num { width: 132px; }
-  .field.num .u { font-size: 11px; color: var(--muted-foreground); }
-  .rowx { display: flex; gap: 8px; align-items: center; min-width: 0; }
-  .rowx .field { flex: 1; }
-  .card .prog { border-top: 1px solid var(--border); padding: 10px 14px 12px; }
-  .card .prog .t { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted-foreground); }
-  .bar { height: 4px; border-radius: 4px; background: color-mix(in oklch, var(--muted-foreground) 15%, transparent); margin-top: 8px; overflow: hidden; position: relative; }
-  .bar i { position: absolute; inset: 0 auto 0 0; background: var(--info); border-radius: 4px; }
-  .bar.success i { background: var(--success); } .bar.danger i { background: var(--danger); }
-  .files { margin-top: 10px; display: grid; grid-template-columns: 1fr 180px 150px; row-gap: 4px; column-gap: 12px; font-size: 12px; color: var(--muted-foreground); }
-  .files .f { display: contents; } .files .f.run > span:first-child { color: var(--foreground); } .files .f.done { opacity: .6; }
-  .files .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .files .f > span:last-child { white-space: nowrap; }
-  .files .mini { height: 4px; border-radius: 4px; background: color-mix(in oklch, var(--muted-foreground) 15%, transparent); position: relative; align-self: center; overflow: hidden; } .files .mini i { position: absolute; inset: 0 auto 0 0; background: var(--info); } .files .f.done .mini i { background: var(--success); }
-  .steps { display: flex; gap: 0; align-items: center; margin-top: 10px; font-size: 11px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; }
-  .steps span { display: inline-flex; align-items: center; gap: 4px; } .steps .sep { width: 14px; height: 1px; background: var(--border); margin: 0 6px; }
-  .steps .d { color: var(--success); } .steps .r { color: var(--info); } .steps .d b, .steps .r b { color: var(--foreground); font-weight: 400; }
-  .drop { border: 1px dashed var(--input); border-radius: 10px; padding: 26px; text-align: center; color: var(--muted-foreground); font-size: 13px; }
-  .drop.big { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; font-size: 14px; color: var(--foreground); }
-  .drop.big small { color: var(--muted-foreground); font-size: 12px; } .drop.big .b { display: flex; gap: 8px; margin-top: 8px; }
+  .eta { font-size: 13px; color: var(--muted-foreground); }
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; color: var(--muted-foreground); }
+  .empty .ring { width: 64px; height: 64px; border-radius: 50%; background: var(--muted); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; } .empty .ring svg { width: 26px; height: 26px; }
+  .empty h3 { margin: 0; color: var(--foreground); font-size: 16px; font-weight: 500; } .empty p { margin: 0; font-size: 13px; max-width: 420px; }
 
-  .footer { height: 48px; flex-shrink: 0; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 12px; color: var(--muted-foreground); }
-  .footer .l { display: flex; gap: 16px; align-items: center; } .footer b { font-weight: 500; color: var(--foreground); }
-  .footer .link:hover { color: var(--foreground); }
-
-  .log { height: 200px; flex-shrink: 0; border-top: 1px solid var(--border); background: var(--card); display: none; flex-direction: column; }
-  .log.open { display: flex; }
-  .log .lb { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 16px 0 24px; font-size: 12px; border-bottom: 1px solid var(--border); }
-  .sel { height: 26px; border: 1px solid var(--input); border-radius: 6px; padding: 0 8px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; } .sel svg { width: 11px; height: 11px; color: var(--muted-foreground); }
-  .log .lines { flex: 1; overflow: auto; padding: 6px 24px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11px; line-height: 1.55; }
-  .ln { display: flex; gap: 8px; white-space: pre; } .ln .t { color: color-mix(in oklch, var(--muted-foreground) 70%, transparent); } .ln .l { width: 40px; text-transform: uppercase; } .ln .s { width: 70px; color: color-mix(in oklch, var(--muted-foreground) 70%, transparent); }
-
-  .menu { position: absolute; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 4px; width: 200px; box-shadow: 0 10px 30px rgba(0,0,0,.4); font-size: 13px; display: none; z-index: 5; }
-  .menu.open { display: block; } .menu div { padding: 6px 10px; border-radius: 5px; } .menu div:hover { background: var(--accent); } .menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
-
-  .overlay { position: absolute; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; z-index: 10; }
-  .overlay.open { display: flex; }
-  .dialog { width: 860px; height: 560px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; display: flex; overflow: hidden; box-shadow: 0 30px 90px rgba(0,0,0,.6); position: relative; }
-  .dnav { width: 200px; padding: 14px; border-right: 1px solid var(--border); background: var(--background); display: flex; flex-direction: column; gap: 3px; }
-  .dnav button { height: 34px; padding: 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; text-align: left; font-size: 13px; } .dnav button.on { background: var(--accent); } .dnav button:hover { background: var(--accent); }
-  .dmain { flex: 1; padding: 18px 24px; overflow: auto; }
-  .dmain h2 { margin: 0 0 14px; font-size: 15px; font-weight: 600; }
-  .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; } .row:last-child { border-bottom: 0; }
-  .row .l { flex: 1; min-width: 0; } .row .l small { display: block; font-size: 11px; color: var(--muted-foreground); }
-  .sw { width: 34px; height: 20px; border-radius: 10px; background: var(--input); position: relative; flex-shrink: 0; } .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--foreground); opacity: .5; } .sw.on { background: var(--primary); } .sw.on::after { left: 16px; background: var(--primary-foreground); opacity: 1; }
-  .tool { display: grid; grid-template-columns: 120px 1fr 60px auto; gap: 10px; align-items: center; font-size: 13px; padding: 8px 0; border-bottom: 1px solid var(--border); } .tool:last-child { border-bottom: 0; }
-  .tool .p { font-size: 11px; color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, Menlo, Consolas, monospace; }
-  .dclose { position: absolute; top: 12px; right: 12px; }
+  .log { height: 210px; flex-shrink: 0; border-top: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; }
+  .log .lb { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--border); font-size: 12px; } .log .lb b { font-weight: 600; }
+  .sel { height: 30px; border: 1px solid var(--input); border-radius: 6px; padding: 0 8px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+  .log .lines { flex: 1; overflow: auto; padding: 6px 12px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; line-height: 1.5; }
+  .ln { display: flex; gap: 8px; white-space: pre; } .ln .t { color: color-mix(in oklch, var(--muted-foreground) 70%, transparent); } .ln .l { width: 40px; text-transform: uppercase; } .ln .s { width: 74px; color: color-mix(in oklch, var(--muted-foreground) 70%, transparent); }
 
   .demo { position: fixed; right: 16px; bottom: 16px; background: #111; color: #ddd; border: 1px solid #333; border-radius: 10px; padding: 8px 10px; display: flex; gap: 6px; align-items: center; font-size: 12px; z-index: 50; }
   .demo b { color: #888; margin: 0 4px 0 6px; font-weight: 500; } .demo button { padding: 3px 9px; border-radius: 6px; color: #aaa; } .demo button.on { background: #333; color: #fff; }
@@ -122,68 +87,43 @@
 <body>
 <div class="win">
   <div class="titlebar">
-    <div class="lights"><i></i><i></i><i></i></div>
+    <div style="display:flex;align-items:center">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <button class="icon-btn on" title="Hide sidebar"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
+      <button class="icon-btn" id="logbtn" title="Log"><svg viewBox="0 0 24 24"><path d="M8 21h8a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></button>
+    </div>
     <div class="tb-title"><b>Hybrid DV HDR</b><span>by Ionicboy</span></div>
-    <div style="display:flex;gap:2px">
-      <button class="icon-btn" id="logtb" title="Log"><svg viewBox="0 0 24 24"><path d="M8 21h8a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></button>
-      <button class="icon-btn" id="gear" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="dot"></span></button>
-    </div>
+    <div style="display:flex;gap:2px"><button class="icon-btn" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="dot"></span></button></div>
   </div>
 
-  <div class="toolbar">
-    <div class="grp">
-      <button class="btn secondary"><svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M12 11v6M9 14h6"/></svg>Add files</button>
-      <button class="btn secondary"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10v6M9 13h6"/></svg>Add folders</button>
-      <span class="muted" style="margin-left:6px;font-size:12px" id="summary">3 pairs</span>
-    </div>
-    <div class="grp">
-      <div class="seg" id="filter"><button class="on">All</button><button>Waiting</button><button>Done</button><button>Failed</button></div>
-      <button class="btn ghost sm" id="clearDone">Clear finished</button>
-      <button class="btn primary" id="start"><svg viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></svg>Start all</button>
-    </div>
-  </div>
+  <div class="body">
+    <aside class="sidebar" id="side"></aside>
 
-  <div class="list" id="list"></div>
-
-  <div class="log" id="log">
-    <div class="lb"><b style="font-weight:600">Log</b><span class="muted">1 024 lines</span>
-      <span class="sel" style="margin-left:6px">All levels <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span><span class="sel">All tools <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
-      <span style="margin-left:auto;display:flex;gap:2px"><button class="icon-btn sm" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button><button class="icon-btn sm" title="Save"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></button><button class="icon-btn sm" title="Clear"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button><button class="icon-btn sm" id="logclose" title="Hide"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></span></div>
-    <div class="lines">
-      <div class="ln"><span class="t">14:02:11.204</span><span class="l info">info</span><span class="s">app</span><span>Processing: D:\Rips\Hybrid\Movie.2024.2160p.UHD.BluRay.DV.HDR.H.265-NOGRP.mkv</span></div>
-      <div class="ln"><span class="t">14:02:12.010</span><span class="l info">info</span><span class="s">mkvmerge</span><span>HDR: 3840x2160 @ 23.976 fps (hevc) | DV: 3840x1600 @ 23.976 fps (hevc)</span></div>
-      <div class="ln"><span class="t">14:02:12.011</span><span class="l warning">warn</span><span class="s">app</span><span>HDR source carries letterbox bars (2160 vs DV 1600): 280 px offsets will be added to the RPU</span></div>
-      <div class="ln"><span class="t">14:02:12.020</span><span class="l info">info</span><span class="s">mkvmerge</span><span>Step 1: Extract Audio &amp; Subtitles</span></div>
-      <div class="ln"><span class="t">14:02:40.318</span><span class="l success">done</span><span class="s">mkvmerge</span><span>Step 1 completed (28.3 s)</span></div>
-      <div class="ln"><span class="t">14:02:40.320</span><span class="l info">info</span><span class="s">mkvextract</span><span>Step 2: Extract DV Video</span></div>
-      <div class="ln"><span class="t">14:04:03.771</span><span class="l success">done</span><span class="s">mkvextract</span><span>Step 2 completed (83.4 s)</span></div>
-      <div class="ln"><span class="t">14:04:03.772</span><span class="l info">info</span><span class="s">dovi_tool</span><span>Step 3: Extract RPU Data</span></div>
-      <div class="ln"><span class="t">14:04:31.105</span><span class="l danger">error</span><span class="s">dovi_tool</span><span>No RPU found in stream</span></div>
-    </div>
-  </div>
-
-  <div class="footer">
-    <div class="l"><span>Output <b>D:\Rips\Hybrid</b></span><span>·</span><button class="link">Change…</button><span>·</span><span>4 workers</span><span>·</span><span>Temp files removed</span></div>
-    <div class="l"><span id="fstatus">Ready</span><button class="link" id="logfoot">Show log</button></div>
-  </div>
-
-  <div class="menu" id="menu"><div>Choose file…</div><div>Choose folder…</div><hr/><div>Swap base and donor</div><div>Clear</div></div>
-
-  <div class="overlay" id="settings">
-    <div class="dialog">
-      <div class="dnav">
-        <button class="on">General</button><button>Tools</button><button>Presets</button><button>Appearance</button><button>About</button>
+    <div class="main">
+      <div class="content">
+        <div class="toolbar">
+          <div style="display:flex;align-items:baseline"><h2>Queue</h2><span class="s" id="qs">3 items</span></div>
+          <div class="r">
+            <button class="icon-btn" title="Clear finished"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+            <button class="btn secondary" id="start"><svg viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></svg>Start</button>
+            <button class="icon-btn" title="More"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="thead"><div><span class="chk on"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span></div><div>Name</div><div>Progress</div><div>Status</div><div>ETA</div><div></div></div>
+          <div id="rows" style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column"></div>
+        </div>
       </div>
-      <button class="icon-btn dclose" id="sclose"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-      <div class="dmain">
-        <h2>General</h2>
-        <div class="row"><div class="l">Output folder<small>D:\Rips\Hybrid — used unless a pair sets its own</small></div><button class="btn outline sm">Change…</button></div>
-        <div class="row"><div class="l">Files at once<small>For folder pairs. Each worker is CPU and disk heavy.</small></div><span class="field num" style="width:70px"><input value="4"/></span></div>
-        <div class="row"><div class="l">Keep temporary files<small>.hevc / .bin / .mka intermediates stay next to the output</small></div><span class="sw"></span></div>
-        <div class="row"><div class="l">Default sync offsets<small>Filled into every new pair; each pair can change them</small></div><span style="display:flex;gap:6px"><span class="field num"><span class="u">DV</span><input value="0"/><span class="u">ms</span></span><span class="field num"><span class="u">HDR10+</span><input value="-42"/><span class="u">ms</span></span></span></div>
-        <div class="row"><div class="l">Notify when the queue finishes</div><span class="sw on"></span></div>
-        <div class="row"><div class="l">Play a sound</div><span class="sw"></span></div>
-        <div class="row"><div class="l">Check for updates on launch<small>Installs from GitHub Releases; the title bar offers a restart</small></div><span class="sw on"></span></div>
+      <div class="log hidden" id="log">
+        <div class="lb"><b>Log</b><span class="muted">1 024 lines</span><span class="sel">All levels</span><span class="sel">All tools</span><span style="margin-left:auto;display:flex;gap:2px"><button class="icon-btn"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button><button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></button><button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button><button class="icon-btn" id="logx"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></span></div>
+        <div class="lines">
+          <div class="ln"><span class="t">14:02:11.204</span><span class="l info">info</span><span class="s">app</span><span>Processing: D:\Rips\Hybrid\Movie.2024.2160p.UHD.BluRay.DV.HDR.H.265-NOGRP.mkv</span></div>
+          <div class="ln"><span class="t">14:02:12.010</span><span class="l info">info</span><span class="s">mkvmerge</span><span>HDR: 3840x2160 @ 23.976 fps (hevc) | DV: 3840x1600 @ 23.976 fps (hevc)</span></div>
+          <div class="ln"><span class="t">14:02:12.011</span><span class="l warning">warn</span><span class="s">app</span><span>HDR source carries letterbox bars (2160 vs DV 1600): 280 px offsets will be added to the RPU</span></div>
+          <div class="ln"><span class="t">14:02:12.020</span><span class="l info">info</span><span class="s">mkvmerge</span><span>Step 1: Extract Audio &amp; Subtitles</span></div>
+          <div class="ln"><span class="t">14:02:40.318</span><span class="l success">done</span><span class="s">mkvmerge</span><span>Step 1 completed (28.3 s)</span></div>
+          <div class="ln"><span class="t">14:04:31.105</span><span class="l danger">error</span><span class="s">dovi_tool</span><span>No RPU found in stream</span></div>
+        </div>
       </div>
     </div>
   </div>
@@ -191,82 +131,62 @@
 
 <div class="demo">
   <b>Theme</b><button class="on" data-theme="dark">Dark</button><button data-theme="light">Light</button>
-  <b>State</b><button data-state="empty">Empty</button><button class="on" data-state="idle">Ready</button><button data-state="running">Running</button><button data-state="done">Done</button><button data-state="failed">Failed</button>
+  <b>Sidebar</b><button data-side="empty">Empty</button><button class="on" data-side="picked">Picked</button>
+  <b>Queue</b><button data-state="empty">Empty</button><button class="on" data-state="idle">Ready</button><button data-state="running">Running</button><button data-state="done">Done</button><button data-state="failed">Failed</button>
 </div>
 
 <script>
 const $ = s => document.querySelector(s); const $$ = s => [...document.querySelectorAll(s)];
-const I = {
-  file: '<svg viewBox="0 0 24 24" style="color:var(--muted-foreground)"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/></svg>',
-  folder: '<svg viewBox="0 0 24 24" style="color:var(--muted-foreground)"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
-  chev: '<svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
-  down: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>', right: '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>',
-  x: '<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>', check: '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>',
-  clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>', spin: '<svg class="spin" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>',
-  warn: '<svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
-  open: '<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v6M9 14l3-3 3 3"/></svg>',
+const I = { file: '<svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/></svg>', folder: '<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>', chev: '<svg class="c" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>', check: '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>', clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>', spin: '<svg class="spin" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>', warn: '<svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>', x: '<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>', open: '<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v6M9 14l3-3 3 3"/></svg>', down: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>', right: '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>' };
+function pk(v, under, opts = {}) { return `<div class="picker ${v ? '' : 'unset'}">${v ? (opts.folder ? I.folder : I.file) : ''}<span class="n">${v || opts.ph || 'Choose a file or folder'}</span>${I.chev}</div>${under ? `<div class="under">${under}</div>` : ''}`; }
+const SIDE = {
+  picked: () => `
+    <div><div class="lbl">HDR video</div>${pk('Movie.2024.2160p.UHD.BluRay.HDR10+.mkv', 'HDR10+ · HEVC · 3840×2160 · 23.976 fps')}</div>
+    <div><div class="lbl">Dolby Vision video</div>${pk('Movie.2024.2160p.WEB-DL.DV.mkv', 'DV · HEVC · 3840×1600 · 23.976 fps · <span class="warning">letterboxed</span>')}</div>
+    <div><div class="lbl">HDR10+ metadata <small>optional</small></div>${pk('', '', { ph: 'Same as HDR video' })}</div>
+    <div class="hr"></div>
+    <div><div class="lbl">Output</div>${pk('D:\\Rips\\Hybrid', 'Movie.2024.2160p.UHD.BluRay.DV.HDR.H.265-NOGRP.mkv', { folder: true })}</div>
+    <div><div class="lbl">Sync offsets <small>ms</small></div><div class="offs"><div class="inp"><span class="muted xs">DV</span><input value="0"/></div><div class="inp"><span class="muted xs">HDR10+</span><input value="-42"/></div></div><div class="under">HDR10+: 1 frame repeated at 23.976 fps</div></div>
+    <div class="grow"></div>
+    <button class="btn secondary block"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add to queue</button>`,
+  empty: () => `
+    <div><div class="lbl">HDR video</div>${pk('')}</div>
+    <div><div class="lbl">Dolby Vision video</div>${pk('')}</div>
+    <div><div class="lbl">HDR10+ metadata <small>optional</small></div>${pk('', '', { ph: 'Same as HDR video' })}</div>
+    <div class="hr"></div>
+    <div><div class="lbl">Output</div>${pk('D:\\Rips\\Hybrid', 'Default folder', { folder: true })}</div>
+    <div><div class="lbl">Sync offsets <small>ms</small></div><div class="offs"><div class="inp"><span class="muted xs">DV</span><input value="0"/></div><div class="inp"><span class="muted xs">HDR10+</span><input value="0"/></div></div></div>
+    <div class="grow"></div>
+    <button class="btn secondary block" disabled><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add to queue</button>`,
 };
-const CHIP = {
-  queued: `<span class="chip muted">${I.clock} Queued</span>`, running: `<span class="chip info">${I.spin} Running</span>`,
-  done: `<span class="chip success">${I.check} Completed</span>`, failed: `<span class="chip danger">${I.warn} Failed</span>`,
-};
-function field(v, { icon = I.file, meta = '', unset = false } = {}) { return `<div class="field ${unset ? 'unset' : ''}">${unset ? '' : icon}<span class="n">${v}</span>${meta ? `<span class="meta">${meta}</span>` : ''}${I.chev}</div>`; }
-function card(c) {
-  const running = c.s === 'running';
-  const open = c.open ?? !running;
-  const body = `<div class="body ${open ? '' : 'hidden'}">
-    <span class="lbl">Base</span>${field(c.base, { icon: c.folder ? I.folder : I.file, meta: c.baseMeta })}
-    <span class="lbl">Dolby Vision</span>${field(c.donor ?? 'Choose the Dolby Vision file or folder', { icon: c.folder ? I.folder : I.file, meta: c.donorMeta, unset: !c.donor })}
-    <span class="lbl">HDR10+</span><div class="rowx">${field('Same as base', { unset: true })}
-      <span class="lbl" style="margin-left:6px">Offsets</span><span class="field num"><span class="u">DV</span><input value="${c.dv ?? 0}"/><span class="u">ms</span></span><span class="field num"><span class="u">HDR10+</span><input value="${c.hp ?? 0}"/><span class="u">ms</span></span></div>
-    <span class="lbl">Output</span>${field(c.out ?? 'D:\\Rips\\Hybrid (default)', { icon: I.folder, meta: c.outMeta })}
-  </div>`;
-  const prog = c.prog ? `<div class="prog"><div class="t"><span>${c.prog.text}</span><span>${c.prog.pct != null ? c.prog.pct + '%' : ''}</span></div>
-    ${c.prog.pct != null ? `<div class="bar ${c.prog.tone ?? ''}"><i style="width:${c.prog.pct}%"></i></div>` : ''}
-    ${c.prog.steps ? `<div class="steps">${c.prog.steps}</div>` : ''}
-    ${c.prog.files ? `<div class="files">${c.prog.files.map(f => `<span class="f ${f.s}"><span class="n">${f.n}</span><span class="mini"><i style="width:${f.p}%"></i></span><span>${f.r}</span></span>`).join('')}</div>` : ''}
-  </div>` : '';
-  return `<div class="card">
-    <div class="head"><button class="caret">${open ? I.down : I.right}</button><span class="title">${c.title}<small>${c.sub ?? ''}</small></span>${CHIP[c.s]}
-      ${c.s === 'done' ? `<button class="icon-btn sm" title="Show in folder">${I.open}</button>` : ''}
-      ${c.s !== 'running' ? `<button class="icon-btn sm" title="Remove">${I.x}</button>` : ''}</div>${body}${prog}</div>`;
+const ST = { queued: ['muted', I.clock, 'Queued', ''], running: ['info', I.spin, 'Running', 'info'], done: ['success', I.check, 'Completed', 'success'], failed: ['danger', I.warn, 'Failed', 'danger'] };
+function row(o) {
+  const [cls, ic, lb, bar] = ST[o.s]; const pct = o.s === 'queued' ? '' : (o.p ?? 0) + '%';
+  return `<div class="tr ${o.child ? 'child' : ''}">
+    <div>${o.child ? '' : `<span class="chk ${o.sel === false ? '' : 'on'}">${o.sel === false ? '' : I.check}</span>`}</div>
+    <div class="nm">${o.child ? '' : `<span class="caret">${o.folder ? (o.open ? I.down : I.right) : ''}</span>`}${o.folder ? I.folder : I.file}<div style="min-width:0"><div class="t">${o.n}</div>${o.p2 ? `<div class="p">${o.p2}</div>` : ''}</div></div>
+    <div class="prog"><div class="bar ${bar}"><i style="width:${o.p ?? 0}%"></i></div><span class="pct">${pct}</span></div>
+    <div class="st ${cls}">${ic}<span>${lb}</span>${o.d ? `<span class="sub">· ${o.d}</span>` : ''}</div>
+    <div class="eta">${o.eta ?? ''}</div>
+    <div>${o.child ? '' : o.s === 'done' ? `<button class="icon-btn">${I.open}</button>` : o.s !== 'running' ? `<button class="icon-btn">${I.x}</button>` : ''}</div></div>`;
 }
-const STEPS = (d, r, rest) => [...d.map(s => `<span class="d">${I.check}<b>${s}</b></span>`), `<span class="r">${I.spin}<b>${r}</b></span>`, ...rest.map(s => `<span>${I.clock}${s}</span>`)].join('<span class="sep"></span>');
-const movie = { title: 'Movie.2024.2160p.UHD.BluRay.DV.HDR.H.265-NOGRP.mkv', base: 'Movie.2024.2160p.UHD.BluRay.HDR10+.mkv', baseMeta: 'HDR10+ · 2160p · 23.976 fps', donor: 'Movie.2024.2160p.WEB-DL.DV.mkv', donorMeta: '1600p · 23.976 fps · letterboxed', hp: -42 };
-const season = { title: 'S01', sub: 'folder pair · 12 files', folder: true, base: 'D:\\Rips\\HDR\\S01', baseMeta: '12 files', donor: 'D:\\Rips\\DV\\S01', donorMeta: '12 matched', out: 'D:\\Rips\\Hybrid\\S01' };
-const other = { title: 'Another.Film.2023', base: 'Another.Film.2023.HDR.mkv', baseMeta: 'HDR10 · 2160p · 23.976 fps' };
-const STATES = {
-  empty: () => `<div class="drop big">Drop HDR and Dolby Vision files or folders here<small>Files are paired by name — HDR10 / HDR10+ with DV. Two folders make a folder pair.</small><div class="b"><button class="btn outline">Add files…</button><button class="btn outline">Add folders…</button></div></div>`,
-  idle: () => card({ ...movie, s: 'queued' }) + card({ ...season, s: 'queued', open: false }) + card({ ...other, s: 'queued' }) + `<div class="drop">Drop more files or folders</div>`,
-  running: () => card({ ...movie, s: 'running', prog: { text: 'Step 5 of 6 · Inject RPU · dovi_tool · about 2 min left', pct: 78, steps: STEPS(['Audio & subs', 'Demux DV', 'Extract RPU', 'Demux HDR10'], 'Inject RPU', ['Mux']) } })
-    + card({ ...season, s: 'running', prog: { text: '5 of 12 done · 2 running · about 18 min left', pct: 41, files: [
-      { n: 'Series.S01E05.2160p.HDR.mkv', p: 100, r: 'done · 5 m 51 s', s: 'done' }, { n: 'Series.S01E06.2160p.HDR.mkv', p: 58, r: 'Demux HDR10 · 2 m 10 s', s: 'run' },
-      { n: 'Series.S01E07.2160p.HDR.mkv', p: 22, r: 'Demux DV · 4 m 35 s', s: 'run' }, { n: 'Series.S01E08.2160p.HDR.mkv', p: 0, r: 'waiting', s: '' }] } })
-    + card({ ...other, donor: 'Another.Film.2023.DV.mkv', s: 'queued', open: false }),
-  done: () => card({ ...movie, s: 'done', open: false, prog: { text: 'Finished in 6 min 42 s · 24.1 GB', pct: 100, tone: 'success' } })
-    + card({ ...season, s: 'done', open: false, prog: { text: '12 files · 41 min 08 s', pct: 100, tone: 'success' } })
-    + card({ ...other, donor: 'Another.Film.2023.DV.mkv', s: 'done', open: false, prog: { text: 'Finished in 7 min 03 s', pct: 100, tone: 'success' } }),
-  failed: () => card({ ...movie, s: 'failed', open: false, prog: { text: '<span class="danger">Failed at step 3 · Extract RPU</span> · dovi_tool: no RPU found in stream · <u>Show log</u>', pct: 34, tone: 'danger', steps: [`<span class="d">${I.check}<b>Audio &amp; subs</b></span>`, `<span class="d">${I.check}<b>Demux DV</b></span>`, `<span class="danger">${I.warn}<b>Extract RPU</b></span>`, `<span>${I.clock}Demux HDR10</span>`, `<span>${I.clock}Inject RPU</span>`, `<span>${I.clock}Mux</span>`].join('<span class="sep"></span>') } })
-    + card({ ...season, s: 'queued', open: false }) + `<div class="drop">Drop more files or folders</div>`,
+const M = { n: 'Movie.2024.2160p.UHD.BluRay.DV.HDR.H.265-NOGRP.mkv', p2: 'HDR10+ · DV · −42 ms · D:\\Rips\\Hybrid' }, S = { n: 'S01 (12 files)', p2: 'D:\\Rips\\HDR\\S01 + D:\\Rips\\DV\\S01 → D:\\Rips\\Hybrid\\S01', folder: true }, A = { n: 'Another.Film.2023.DV.HDR.H.265-NOGRP.mkv', p2: 'HDR10 · DV · D:\\Rips\\Hybrid' };
+const Q = {
+  empty: () => `<div class="empty"><div class="ring">${I.file}</div><h3>Nothing queued</h3><p>Pick an HDR video and a Dolby Vision video on the left, then add the pair — or drop files or folders anywhere in this window.</p><div style="display:flex;gap:8px;margin-top:10px"><button class="btn outline">Add files…</button><button class="btn outline">Add folders…</button></div></div>`,
+  idle: () => row({ ...M, s: 'queued' }) + row({ ...S, s: 'queued' }) + row({ ...A, s: 'queued', sel: false }),
+  running: () => row({ ...M, s: 'running', p: 78, d: 'Inject RPU · step 5 of 6', eta: '2m 10s' }) + row({ ...S, s: 'running', p: 41, d: '5 of 12', eta: '18m', open: true })
+    + row({ n: 'Series.S01E05.2160p.HDR.mkv', s: 'done', p: 100, child: true, eta: '5m 51s' }) + row({ n: 'Series.S01E06.2160p.HDR.mkv', s: 'running', p: 58, d: 'Demux HDR10', child: true, eta: '2m 10s' }) + row({ n: 'Series.S01E07.2160p.HDR.mkv', s: 'running', p: 22, d: 'Demux DV', child: true, eta: '4m 35s' }) + row({ n: 'Series.S01E08.2160p.HDR.mkv', s: 'queued', child: true })
+    + row({ ...A, s: 'queued', sel: false }),
+  done: () => row({ ...M, s: 'done', p: 100, eta: '6m 42s' }) + row({ ...S, s: 'done', p: 100, eta: '41m 08s' }) + row({ ...A, s: 'done', p: 100, eta: '7m 03s' }),
+  failed: () => row({ ...M, s: 'failed', p: 34, d: 'Extract RPU — no RPU found in stream' }) + row({ ...S, s: 'queued' }) + row({ ...A, s: 'queued' }),
 };
-const SUM = { empty: '', idle: '3 pairs · 14 files', running: '3 pairs · 1 running · 2 of 4 workers', done: '3 pairs · all done', failed: '2 pairs · 1 failed' };
-const FST = { empty: 'Ready', idle: 'Ready', running: 'Processing…', done: 'Finished', failed: '1 failed' };
-function render(state) {
-  $('#list').innerHTML = STATES[state](); $('#summary').textContent = SUM[state]; $('#fstatus').textContent = FST[state];
-  $('#start').innerHTML = state === 'running' ? '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>Stop' : '<svg viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></svg>Start all';
-  $('#start').disabled = state === 'empty'; $('#clearDone').classList.toggle('hidden', state !== 'done' && state !== 'failed');
-  $$('.card .caret').forEach(b => b.onclick = () => { const body = b.closest('.card').querySelector('.body'); body.classList.toggle('hidden'); b.innerHTML = body.classList.contains('hidden') ? I.right : I.down; });
-  $$('.card .field:not(.num)').forEach(f => f.addEventListener('click', e => { const m = $('#menu'); const r = f.getBoundingClientRect(), w = $('.win').getBoundingClientRect(); m.style.left = (r.left - w.left) + 'px'; m.style.top = (r.bottom - w.top + 4) + 'px'; m.classList.add('open'); e.stopPropagation(); }));
-  $$('.prog u').forEach(u => u.onclick = () => $('#log').classList.add('open'));
-}
-document.addEventListener('click', () => $('#menu').classList.remove('open'));
-$$('.demo [data-theme]').forEach(b => b.onclick = () => { document.documentElement.className = b.dataset.theme; document.body.style.background = b.dataset.theme === 'light' ? '#d0d0d0' : '#000'; $$('.demo [data-theme]').forEach(x => x.classList.toggle('on', x === b)); });
+function render(st) { $('#rows').innerHTML = Q[st](); $('#qs').textContent = { empty: 'Empty', idle: '3 items · 14 files', running: '3 items · 1 running · 2 of 4 workers', done: '3 items · all completed', failed: '3 items · 1 failed' }[st]; $('#start').innerHTML = st === 'running' ? '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>Stop' : '<svg viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></svg>Start'; }
+$$('.demo [data-theme]').forEach(b => b.onclick = () => { document.documentElement.className = b.dataset.theme; document.body.style.background = b.dataset.theme === 'light' ? '#c8c8c8' : '#000'; $$('.demo [data-theme]').forEach(x => x.classList.toggle('on', x === b)); });
+$$('.demo [data-side]').forEach(b => b.onclick = () => { $('#side').innerHTML = SIDE[b.dataset.side](); $$('.demo [data-side]').forEach(x => x.classList.toggle('on', x === b)); });
 $$('.demo [data-state]').forEach(b => b.onclick = () => { render(b.dataset.state); $$('.demo [data-state]').forEach(x => x.classList.toggle('on', x === b)); });
-$('#gear').onclick = () => $('#settings').classList.add('open'); $('#sclose').onclick = () => $('#settings').classList.remove('open');
-const tl = () => $('#log').classList.toggle('open'); $('#logtb').onclick = tl; $('#logfoot').onclick = tl; $('#logclose').onclick = tl;
+$('#logbtn').onclick = () => $('#log').classList.toggle('hidden'); $('#logx').onclick = () => $('#log').classList.add('hidden');
 $('#start').onclick = () => render($('#start').textContent.includes('Stop') ? 'idle' : 'running');
-$$('#filter button').forEach(b => b.onclick = () => $$('#filter button').forEach(x => x.classList.toggle('on', x === b)));
-render('idle');
+$('#side').innerHTML = SIDE.picked(); render('idle');
 </script>
 </body>
 </html>

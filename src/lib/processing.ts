@@ -30,8 +30,7 @@ export async function startQueue() {
       etaSeconds: undefined,
     })
     app.clearFilesForJob(job.id)
-    // Options are locked while running; the progress section takes their place.
-    app.setExpanded(job.id, false)
+    app.setExpanded(job.id, true)
   }
   app.setRunStatus('processing')
   app.setCancelling(false)

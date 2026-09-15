@@ -12,6 +12,31 @@ import type {
 } from '@/types'
 
 export type { PathKind }
+
+/** The sidebar form: one pair being set up before it is added to the queue. */
+export interface JobSetup {
+  hdrPath: string
+  hdrKind: PathKind
+  dvPath: string
+  dvKind: PathKind
+  hdr10plusPath: string
+  outputPath: string
+  outputKind: PathKind
+  dvDelayMs: string
+  hdr10plusDelayMs: string
+}
+
+export const emptySetup: JobSetup = {
+  hdrPath: '',
+  hdrKind: 'unknown',
+  dvPath: '',
+  dvKind: 'unknown',
+  hdr10plusPath: '',
+  outputPath: '',
+  outputKind: 'unknown',
+  dvDelayMs: '',
+  hdr10plusDelayMs: '',
+}
 export type ProbeState =
   | { state: 'loading' }
   | { state: 'ok'; info: SourceInfo }
@@ -27,6 +52,7 @@ const SOURCE_RE =
   /^(dovi_tool|hdr10plus_tool|mkvmerge|mkvextract|ffmpeg|ffprobe|MediaInfo|MP4Box)\b/i
 
 interface AppState {
+  setup: JobSetup
   filter: JobFilter
   probes: Record<string, ProbeState>
   jobs: Job[]
@@ -46,7 +72,11 @@ interface AppState {
   updateProgress: number | null
   updateSplashDismissed: boolean
 
+  setSetup: (patch: Partial<JobSetup>) => void
+  resetSetup: () => void
   setFilter: (filter: JobFilter) => void
+  setJobSelected: (id: string, selected: boolean) => void
+  setAllSelected: (selected: boolean) => void
   setProbe: (path: string, probe: ProbeState) => void
   addJob: (job: Job) => void
   updateJob: (id: string, patch: Partial<Job>) => void
@@ -75,6 +105,7 @@ interface AppState {
 let logSeq = 0
 
 export const useAppStore = create<AppState>()((set, get) => ({
+  setup: emptySetup,
   filter: 'all',
   probes: {},
   jobs: [],
@@ -94,7 +125,22 @@ export const useAppStore = create<AppState>()((set, get) => ({
   updateProgress: null,
   updateSplashDismissed: false,
 
+  setSetup: patch => set(s => ({ setup: { ...s.setup, ...patch } })),
+  resetSetup: () =>
+    set(s => ({
+      setup: {
+        ...emptySetup,
+        dvDelayMs: s.setup.dvDelayMs,
+        hdr10plusDelayMs: s.setup.hdr10plusDelayMs,
+      },
+    })),
   setFilter: filter => set({ filter }),
+  setJobSelected: (id, selected) =>
+    set(s => ({
+      jobs: s.jobs.map(j => (j.id === id ? { ...j, selected } : j)),
+    })),
+  setAllSelected: selected =>
+    set(s => ({ jobs: s.jobs.map(j => ({ ...j, selected })) })),
   setProbe: (path, probe) =>
     set(s => ({ probes: { ...s.probes, [path]: probe } })),
 

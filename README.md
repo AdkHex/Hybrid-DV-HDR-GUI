@@ -26,10 +26,11 @@ Preferences → Tools shows what was found and can download the missing ones.
    (`mkvmerge`). Temp files sit next to the output and are removed unless
    "Keep temporary files" is on.
 
-The window is a list of pair cards: drop files or folders anywhere and they are
-paired by name (HDR10 / HDR10+ with DV); each card carries its own HDR10+
-source, sync offsets and output. Folder pairs match their files by name and run
-across parallel workers (Preferences → General).
+Pick the HDR video, the Dolby Vision video and (optionally) a separate HDR10+
+source in the sidebar — or drop files anywhere and they land in the right slot
+by name — set the output and sync offsets, and add the pair to the queue. Folder
+pairs match their files by name and run across parallel workers (Preferences →
+General).
 
 ## Development
 

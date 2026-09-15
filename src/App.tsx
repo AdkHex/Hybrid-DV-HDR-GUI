@@ -66,7 +66,10 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return
       const settings = useSettingsStore.getState()
-      if (e.key === '2' || e.key === 'l') {
+      if (e.key === '1') {
+        e.preventDefault()
+        settings.toggleSidebar()
+      } else if (e.key === '2' || e.key === 'l') {
         e.preventDefault()
         settings.toggleLog()
       } else if (e.key === ',') {

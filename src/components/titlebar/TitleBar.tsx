@@ -1,5 +1,13 @@
 import { useState } from 'react'
-import { Download, Loader2, ScrollText, Settings, Wrench } from 'lucide-react'
+import {
+  Download,
+  Loader2,
+  PanelLeft,
+  PanelLeftClose,
+  ScrollText,
+  Settings,
+  Wrench,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { detectPlatform } from '@/lib/platform'
 import { installUpdate } from '@/lib/updater'
@@ -29,7 +37,8 @@ const iconButton = 'size-7 text-foreground/70 hover:text-foreground'
 export function TitleBar() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const platform = detectPlatform()
-  const { logVisible, toggleLog } = useSettingsStore()
+  const { sidebarVisible, toggleSidebar, logVisible, toggleLog } =
+    useSettingsStore()
   const openPreferences = useAppStore(s => s.openPreferences)
   const toolStatus = useAppStore(s => s.toolStatus)
   const {
@@ -54,6 +63,27 @@ export function TitleBar() {
           <div className="w-2" />
         )}
         <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={toggleSidebar}
+                variant="ghost"
+                size="icon"
+                className={iconButton}
+                aria-label={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
+              >
+                {sidebarVisible ? (
+                  <PanelLeftClose className="size-3.5" />
+                ) : (
+                  <PanelLeft className="size-3.5" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
+              <span className="ml-2 opacity-60">⌘1</span>
+            </TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

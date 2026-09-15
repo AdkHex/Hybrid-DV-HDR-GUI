@@ -20,6 +20,7 @@ interface SettingsState {
   notifyOnFinish: boolean
   soundOnFinish: boolean
   autoCheckUpdates: boolean
+  sidebarVisible: boolean
   logVisible: boolean
 
   setToolPaths: (paths: Partial<ToolPaths>) => void
@@ -30,6 +31,7 @@ interface SettingsState {
   setNotifyOnFinish: (v: boolean) => void
   setSoundOnFinish: (v: boolean) => void
   setAutoCheckUpdates: (v: boolean) => void
+  toggleSidebar: () => void
   toggleLog: () => void
   setLogVisible: (v: boolean) => void
   addPreset: (preset: Preset) => void
@@ -75,6 +77,7 @@ export const useSettingsStore = create<SettingsState>()(
       autoCheckUpdates: true,
       defaultDvDelayMs: 0,
       defaultHdr10plusDelayMs: 0,
+      sidebarVisible: true,
       logVisible: false,
 
       setToolPaths: paths =>
@@ -90,6 +93,7 @@ export const useSettingsStore = create<SettingsState>()(
       setNotifyOnFinish: notifyOnFinish => set({ notifyOnFinish }),
       setSoundOnFinish: soundOnFinish => set({ soundOnFinish }),
       setAutoCheckUpdates: autoCheckUpdates => set({ autoCheckUpdates }),
+      toggleSidebar: () => set(s => ({ sidebarVisible: !s.sidebarVisible })),
       toggleLog: () => set(s => ({ logVisible: !s.logVisible })),
       setLogVisible: logVisible => set({ logVisible }),
       addPreset: preset => set(s => ({ presets: [...s.presets, preset] })),
