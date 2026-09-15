@@ -1,18 +1,36 @@
 [package]
 name = "hybrid-dv-hdr"
 version = "1.4.0"
+description = "Hybrid DV HDR by Ionicboy"
+authors = ["Ionicboy"]
 edition = "2021"
 
+[lib]
+# The `_lib` suffix keeps the library name distinct from the binary on Windows.
+name = "hybrid_dv_hdr_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [build-dependencies]
-tauri-build = { version = "1.5", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
+tauri = { version = "2", features = ["macos-private-api"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-process = "2"
 regex = "1.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tauri = { version = "1.6", features = [ "dialog-save", "dialog-open", "shell-open", "dialog-message"] }
-reqwest = { version = "0.11", features = ["blocking", "stream"] }
-tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "time"] }
 
-[features]
-custom-protocol = ["tauri/custom-protocol"]
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

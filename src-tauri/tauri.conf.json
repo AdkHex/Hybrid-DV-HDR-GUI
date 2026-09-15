@@ -1,44 +1,74 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Hybrid DV HDR",
+  "version": "1.4.0",
+  "identifier": "com.ionicboy.hybrid-dv-hdr",
   "build": {
+    "removeUnusedCommands": true,
     "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
-    "devPath": "http://localhost:8080",
-    "distDir": "../dist"
+    "frontendDist": "../dist"
   },
-  "package": {
-    "productName": "Hybrid DV HDR Tool By Ionicboy",
-    "version": "1.4.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "dialog": {
-        "open": true,
-        "save": true,
-        "message": true
-      },
-      "shell": {
-        "open": true
-      }
-    },
+  "app": {
     "windows": [
       {
-        "title": "Hybrid DV HDR Tool",
-        "width": 1600,
-        "height": 1000,
-        "minWidth": 1300,
-        "minHeight": 820,
+        "title": "Hybrid DV HDR by Ionicboy",
+        "width": 1400,
+        "height": 880,
+        "minWidth": 1100,
+        "minHeight": 700,
         "resizable": true,
-        "maximized": true
+        "center": true,
+        "decorations": false,
+        "transparent": true,
+        "shadow": true,
+        "dragDropEnabled": true,
+        "windowEffects": {
+          "effects": ["hudWindow"],
+          "radius": 12,
+          "state": "active"
+        }
       }
     ],
-    "bundle": {
+    "security": {
+      "csp": null
+    },
+    "macOSPrivateApi": true
+  },
+  "bundle": {
+    "createUpdaterArtifacts": true,
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "Ionicboy",
+    "category": "Video",
+    "shortDescription": "Combine Dolby Vision metadata with HDR10 / HDR10+ video",
+    "longDescription": "Hybrid DV HDR by Ionicboy injects the Dolby Vision RPU from one source into an HDR10 or HDR10+ stream using dovi_tool, hdr10plus_tool, MKVToolNix and ffmpeg.",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "signingIdentity": "-"
+    }
+  },
+  "plugins": {
+    "updater": {
       "active": true,
-      "targets": ["msi"],
-      "identifier": "com.ionicboy.hybrid-dv-hdr",
-      "icon": [
-        "icons/icon.ico"
+      "endpoints": [
+        "https://github.com/AdkHex/Hybrid-DV-HDR-GUI/releases/latest/download/latest.json"
       ],
-      "resources": []
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYxNTZCNDlFMEM1M0E3NzQKUldSMHAxTU1uclJXWVJvaXhSYm8xN3V1R2RaMFg2YlkzNFE1RnlBSld3YklWMkpTeXJjdHlHRHEK"
     }
   }
 }

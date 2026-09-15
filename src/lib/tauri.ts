@@ -1,61 +1,93 @@
-export const isTauri = () => Boolean((window as any).__TAURI__);
+import { invoke } from '@tauri-apps/api/core'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { open, save } from '@tauri-apps/plugin-dialog'
+import { revealItemInDir } from '@tauri-apps/plugin-opener'
+import type {
+  AppDefaults,
+  PathInfo,
+  ProcessingRequest,
+  SourceInfo,
+  ToolPaths,
+  ToolStatus,
+} from '@/types'
 
-export async function invokeTauri<T>(command: string, payload?: Record<string, unknown>): Promise<T> {
-  const { invoke } = await import('@tauri-apps/api/tauri');
-  return invoke<T>(command, payload);
+// `window.__TAURI_INTERNALS__` only exists inside the Tauri shell; in a plain
+// browser (vite dev) every backend call is skipped.
+export const isTauri = () => '__TAURI_INTERNALS__' in window
+
+export function listenTauri<T>(
+  event: string,
+  handler: (payload: T) => void
+): Promise<UnlistenFn> {
+  return listen<T>(event, e => handler(e.payload))
 }
 
-export async function listenTauri<T>(event: string, handler: (event: { payload: T }) => void) {
-  const { listen } = await import('@tauri-apps/api/event');
-  return listen<T>(event, handler);
+export const api = {
+  inspectPaths: (paths: string[]) =>
+    paths.length
+      ? invoke<PathInfo[]>('inspect_paths', { paths })
+      : Promise.resolve([]),
+  getAppDefaults: () => invoke<AppDefaults>('get_app_defaults'),
+  probeSource: (path: string, toolPaths: ToolPaths) =>
+    invoke<SourceInfo>('probe_source', { path, toolPaths }),
+  checkTools: (toolPaths: ToolPaths) =>
+    invoke<ToolStatus[]>('check_tools', { toolPaths }),
+  startProcessing: (request: ProcessingRequest) =>
+    invoke('start_processing', { request }),
+  cancelProcessing: () => invoke('cancel_processing'),
+  downloadFile: (url: string, filename: string) =>
+    invoke<string>('download_file', { url, filename }),
+  saveTextFile: (path: string, contents: string) =>
+    invoke('save_text_file', { path, contents }),
 }
 
-export async function openDialog(options: {
-  directory?: boolean;
-  multiple?: boolean;
-  filters?: { name: string; extensions: string[] }[];
-}) {
-  const { open } = await import('@tauri-apps/api/dialog');
-  const sanitized: {
-    directory?: boolean;
-    multiple?: boolean;
-    filters?: { name: string; extensions: string[] }[];
-  } = {};
+const videoFilter = [
+  {
+    name: 'Video',
+    extensions: ['mkv', 'mp4', 'm4v', 'mov', 'hevc', 'h265', 'ts', 'm2ts'],
+  },
+]
 
-  if (options.directory === true) {
-    sanitized.directory = true;
-  }
-  if (options.multiple === true) {
-    sanitized.multiple = true;
-  }
-  if (!sanitized.directory && options.filters && options.filters.length > 0) {
-    sanitized.filters = options.filters;
-  }
-
-  return open(sanitized);
+export async function pickFile(defaultPath?: string): Promise<string | null> {
+  const picked = await open({
+    multiple: false,
+    directory: false,
+    filters: videoFilter,
+    defaultPath,
+  })
+  return typeof picked === 'string' ? picked : null
 }
 
-export async function saveDialog(options: {
-  defaultPath?: string;
-  filters?: { name: string; extensions: string[] }[];
-}) {
-  const { save } = await import('@tauri-apps/api/dialog');
-  const sanitized: {
-    defaultPath?: string;
-    filters?: { name: string; extensions: string[] }[];
-  } = {};
-
-  if (options.defaultPath) {
-    sanitized.defaultPath = options.defaultPath;
-  }
-  if (options.filters && options.filters.length > 0) {
-    sanitized.filters = options.filters;
-  }
-
-  return save(sanitized);
+export async function pickFiles(): Promise<string[]> {
+  const picked = await open({
+    multiple: true,
+    directory: false,
+    filters: videoFilter,
+  })
+  return Array.isArray(picked) ? picked : picked ? [picked] : []
 }
 
-export async function openUrl(url: string) {
-  const { open } = await import('@tauri-apps/api/shell');
-  return open(url);
+export async function pickFolder(defaultPath?: string): Promise<string | null> {
+  const picked = await open({ multiple: false, directory: true, defaultPath })
+  return typeof picked === 'string' ? picked : null
+}
+
+export async function pickExecutable(): Promise<string | null> {
+  const picked = await open({ multiple: false, directory: false })
+  return typeof picked === 'string' ? picked : null
+}
+
+export async function pickSaveFile(
+  defaultPath?: string,
+  ext = 'mkv'
+): Promise<string | null> {
+  const picked = await save({
+    defaultPath,
+    filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
+  })
+  return typeof picked === 'string' ? picked : null
+}
+
+export function revealPath(path: string) {
+  return revealItemInDir(path)
 }

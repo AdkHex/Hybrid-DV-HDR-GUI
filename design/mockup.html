@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8" />
+<title>Hybrid DV HDR — mockup</title>
+<style>
+  /* Tokens copied from GDExplorer / RsKV (shadcn neutral, HIG status colours) */
+  :root {
+    --radius: 10px;
+    --background: oklch(1 0 0); --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0); --muted: oklch(0.97 0 0); --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0); --border: oklch(0.922 0 0); --input: oklch(0.922 0 0);
+    --primary: oklch(0.205 0 0); --primary-foreground: oklch(0.985 0 0);
+    --sidebar: oklch(0.985 0 0);
+    --info: #1a63dc; --success: #00792c; --warning: #b34b00; --danger: #d4102a;
+  }
+  .dark {
+    --background: oklch(0.145 0 0); --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0); --muted: oklch(0.269 0 0); --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0); --border: oklch(1 0 0 / 10%); --input: oklch(1 0 0 / 15%);
+    --primary: oklch(0.922 0 0); --primary-foreground: oklch(0.205 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --info: #5cb8ff; --success: #4ad968; --warning: #ffa056; --danger: #ff6165;
+  }
+  * { box-sizing: border-box; border-color: var(--border); }
+  html, body { margin: 0; height: 100%; }
+  body { background: #000; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 13px; line-height: 1.45; color: var(--foreground); -webkit-font-smoothing: antialiased; user-select: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
+  svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+  .xs { font-size: 11px; } .sm { font-size: 12px; } .muted { color: var(--muted-foreground); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .num { font-variant-numeric: tabular-nums; }
+  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .info { color: var(--info); } .success { color: var(--success); } .warning { color: var(--warning); } .danger { color: var(--danger); }
+
+  /* window */
+  .win { width: 1400px; height: 880px; margin: 20px auto; background: var(--background); border-radius: 11px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 24px 80px rgba(0,0,0,.6); border: 1px solid var(--border); }
+  .titlebar { height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: relative; }
+  .lights { display: flex; gap: 8px; padding: 0 12px; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; display: block; }
+  .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .tb-title { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); display: flex; align-items: baseline; gap: 6px; }
+  .tb-title b { font-weight: 500; font-size: 13px; opacity: .8; } .tb-title span { font-size: 10px; color: var(--muted-foreground); }
+  .tb-right { display: flex; gap: 4px; padding-right: 8px; }
+  .icon-btn { width: 28px; height: 28px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; color: color-mix(in oklch, var(--foreground) 70%, transparent); position: relative; }
+  .icon-btn:hover { background: var(--accent); color: var(--foreground); }
+  .icon-btn.on { color: var(--foreground); }
+  .icon-btn .badge { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--warning); }
+
+  .body { flex: 1; display: flex; min-height: 0; }
+  .sidebar { width: 320px; flex-shrink: 0; border-right: 1px solid var(--border); padding: 24px; overflow: hidden auto; display: flex; flex-direction: column; gap: 28px; }
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .main-content { flex: 1; min-height: 0; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
+
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); display: flex; align-items: center; justify-content: space-between; }
+  .field-label { font-size: 12px; color: var(--muted-foreground); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .picker { width: 100%; height: 40px; border: 1px solid var(--input); border-radius: 8px; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 13px; background: transparent; }
+  .picker.unset { border-style: dashed; color: var(--muted-foreground); }
+  .picker > .name { flex: 1; min-width: 0; display: block; padding: 0; }
+  .picker .chev { color: var(--muted-foreground); }
+  .picker:hover { background: var(--accent); }
+  .probe { margin-top: 6px; font-size: 11px; color: var(--muted-foreground); line-height: 1.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .disc { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted-foreground); } .disc svg { width: 12px; height: 12px; }
+  .probe b { font-weight: 500; color: var(--foreground); }
+  .input { height: 32px; border: 1px solid var(--input); border-radius: 8px; padding: 0 10px; display: flex; align-items: center; gap: 6px; background: transparent; font-size: 13px; }
+  .input input { flex: 1; min-width: 0; width: 0; background: none; border: 0; color: inherit; font: inherit; outline: none; }
+  .hr { height: 1px; background: var(--border); }
+  .sidebar .grow { flex: 1; }
+
+  .btn { height: 32px; padding: 0 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .btn.secondary { background: var(--muted); } .btn.secondary:hover { filter: brightness(1.15); }
+  .btn.primary { background: var(--primary); color: var(--primary-foreground); }
+  .btn.outline { border: 1px solid var(--input); } .btn.outline:hover { background: var(--accent); }
+  .btn.ghost:hover { background: var(--accent); }
+  .btn:disabled { opacity: .5; }
+  .btn.block { width: 100%; justify-content: center; }
+  .switch { width: 34px; height: 20px; border-radius: 10px; background: var(--input); position: relative; flex-shrink: 0; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--foreground); opacity: .5; }
+  .switch.on { background: var(--primary); } .switch.on::after { left: 16px; background: var(--primary-foreground); opacity: 1; }
+
+  /* toolbar + table card */
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .toolbar h2 { margin: 0; font-size: 14px; font-weight: 600; }
+  .toolbar .status { font-size: 12px; color: var(--muted-foreground); margin-left: 8px; }
+  .toolbar .right { display: flex; align-items: center; gap: 8px; }
+  .card { border: 1px solid var(--border); background: var(--card); border-radius: 8px; overflow: hidden; }
+  .table { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .table .scroll { overflow: auto; flex: 1; display: flex; flex-direction: column; }
+  .thead, .tr { display: grid; grid-template-columns: 40px minmax(240px,1fr) 220px 220px 80px 44px; align-items: center; }
+  .thead { height: 36px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted-foreground); position: sticky; top: 0; background: var(--card); }
+  .thead > div, .tr > div { padding: 0 10px; min-width: 0; }
+  .tr { min-height: 48px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .tr:hover { background: color-mix(in oklch, var(--accent) 50%, transparent); }
+  .tr.child { min-height: 36px; font-size: 12px; color: var(--muted-foreground); background: color-mix(in oklch, var(--muted) 25%, transparent); }
+  .tr.child .name { padding-left: 24px; }
+  .chk { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--input); display: inline-flex; align-items: center; justify-content: center; }
+  .chk.on { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
+  .chk svg { width: 10px; height: 10px; stroke-width: 3; }
+  .name { display: flex; align-items: center; gap: 6px; }
+  .name .caret { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; color: var(--muted-foreground); }
+  .name .caret:hover { background: var(--accent); color: var(--foreground); }
+  .name svg { color: var(--muted-foreground); }
+  .name .t { font-weight: 500; } .name .p { font-size: 11px; color: var(--muted-foreground); }
+  .prog { display: flex; align-items: center; gap: 8px; }
+  .bar { flex: 1; height: 6px; border-radius: 6px; background: color-mix(in oklch, var(--muted-foreground) 12%, transparent); overflow: hidden; position: relative; }
+  .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: color-mix(in oklch, var(--muted-foreground) 30%, transparent); }
+  .bar.info i { background: var(--info); } .bar.success i { background: var(--success); } .bar.danger i { background: var(--danger); }
+  .bar.info.indet i { width: 35% !important; animation: slide 1.3s linear infinite; }
+  @keyframes slide { from { left: -35%; } to { left: 100%; } }
+  .prog .pct { width: 38px; text-align: right; font-size: 11px; color: var(--muted-foreground); }
+  .st { display: flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; overflow: hidden; } .st .sub { color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; } .st svg { width: 12px; height: 12px; }
+  .spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+  .cell-muted { font-size: 12px; color: var(--muted-foreground); }
+  .row-actions { display: flex; gap: 2px; justify-content: flex-end; }
+  .row-actions .icon-btn { width: 24px; height: 24px; } .row-actions svg { width: 13px; height: 13px; }
+
+  /* steps strip (expanded file) */
+  .steps { display: flex; align-items: center; gap: 0; padding: 0 10px 0 62px; height: 34px; border-bottom: 1px solid var(--border); background: color-mix(in oklch, var(--muted) 25%, transparent); font-size: 11px; color: var(--muted-foreground); overflow: hidden; white-space: nowrap; }
+  .steps .step { display: inline-flex; align-items: center; gap: 5px; } .steps .step svg { width: 11px; height: 11px; }
+  .steps .step .txt { color: var(--foreground); } .steps .step.pending .txt { color: var(--muted-foreground); }
+  .steps .sep { width: 18px; height: 1px; background: var(--border); margin: 0 8px; }
+  .steps .note { margin-left: auto; padding-left: 16px; }
+
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; color: var(--muted-foreground); padding: 40px; }
+  .empty .ring { width: 56px; height: 56px; border-radius: 50%; background: var(--muted); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+  .empty .ring svg { width: 22px; height: 22px; }
+  .empty h3 { margin: 0; color: var(--foreground); font-size: 14px; font-weight: 500; }
+  .empty p { margin: 0; font-size: 12px; max-width: 360px; }
+
+  /* log */
+  .log { height: 184px; flex-shrink: 0; border-top: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; }
+  .log .lbar { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--border); }
+  .log .lbar h2 { margin: 0; font-size: 12px; font-weight: 600; }
+  .sel { height: 28px; border: 1px solid var(--input); border-radius: 6px; padding: 0 8px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+  .sel svg { width: 12px; height: 12px; color: var(--muted-foreground); }
+  .log .lines { flex: 1; overflow: auto; padding: 6px 12px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11px; line-height: 1.5; }
+  .ln { display: flex; gap: 8px; white-space: pre; } .ln .t { color: color-mix(in oklch, var(--muted-foreground) 70%, transparent); } .ln .l { text-transform: uppercase; width: 44px; } .ln .s { color: color-mix(in oklch, var(--muted-foreground) 70%, transparent); width: 74px; }
+  .ln.lv-info .l { color: var(--info); } .ln.lv-warn .l { color: var(--warning); } .ln.lv-err .l { color: var(--danger); } .ln.lv-ok .l { color: var(--success); }
+
+  /* preferences dialog */
+  .overlay { position: absolute; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; }
+  .overlay.open { display: flex; }
+  .dialog { width: 1080px; height: 640px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; display: flex; overflow: hidden; box-shadow: 0 30px 90px rgba(0,0,0,.6); position: relative; }
+  .dnav { width: 260px; padding: 16px; border-right: 1px solid var(--border); background: var(--background); display: flex; flex-direction: column; gap: 4px; }
+  .dnav button { height: 36px; padding: 0 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; text-align: left; font-size: 14px; }
+  .dnav button.on { background: var(--accent); } .dnav button:hover { background: var(--accent); }
+  .dmain { flex: 1; padding: 20px 28px; overflow: auto; }
+  .crumb { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted-foreground); margin-bottom: 26px; } .crumb b { color: var(--foreground); font-weight: 500; }
+  .dclose { position: absolute; top: 14px; right: 14px; }
+  .dsec { font-size: 18px; font-weight: 600; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  .drow { margin-bottom: 22px; }
+  .drow .lab { font-size: 14px; font-weight: 500; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+  .drow .help { font-size: 12px; color: var(--muted-foreground); margin-top: 6px; }
+  .drow .input { height: 36px; }
+  .toolrow { display: grid; grid-template-columns: 150px 1fr 90px auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .toolrow:last-child { border-bottom: 0; }
+  .toolrow .n { font-weight: 500; } .toolrow .n small { display: block; font-size: 11px; color: var(--muted-foreground); font-weight: 400; }
+
+  .demo { position: fixed; right: 16px; bottom: 16px; background: #111; color: #ddd; border: 1px solid #333; border-radius: 10px; padding: 8px 10px; display: flex; gap: 6px; align-items: center; font-size: 12px; z-index: 50; }
+  .demo b { color: #888; margin: 0 4px 0 6px; font-weight: 500; }
+  .demo button { padding: 3px 9px; border-radius: 6px; color: #aaa; } .demo button.on { background: #333; color: #fff; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="win" id="win">
+  <div class="titlebar">
+    <div style="display:flex;align-items:center">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <button class="icon-btn on" title="Hide sidebar ⌘1"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
+      <button class="icon-btn" id="tb-log" title="Show log ⌘2"><svg viewBox="0 0 24 24"><path d="M8 21h8a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></button>
+    </div>
+    <div class="tb-title"><b>Hybrid DV HDR</b><span>by Ionicboy</span></div>
+    <div class="tb-right">
+      <button class="icon-btn" title="Tools" id="tb-tools"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0 5 5L9.6 21.4a2 2 0 0 1-2.8-2.8L16.9 8.5a4 4 0 0 0-2.2-2.2z"/></svg><span class="badge"></span></button>
+      <button class="icon-btn" title="Settings ⌘," id="tb-prefs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    </div>
+  </div>
+
+  <div class="body" style="position:relative">
+    <!-- ---------- Sidebar: job setup ---------- -->
+    <aside class="sidebar">
+      <div>
+        <div class="section-label">Sources</div>
+        <div style="height:12px"></div>
+        <div class="field-label"><span>HDR10 / HDR10+ base</span></div>
+        <div class="picker" id="pk-hdr">
+          <svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/></svg>
+          <span class="name truncate">Movie.2024.2160p.UHD.BluRay.HDR10+.mkv</span>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="probe">2160p · 23.976 fps · HEVC · HDR10+</div>
+
+        <div style="height:14px"></div>
+        <div class="field-label"><span>Dolby Vision donor</span></div>
+        <div class="picker" id="pk-dv">
+          <svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/></svg>
+          <span class="name truncate">Movie.2024.2160p.WEB-DL.DV.mkv</span>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="probe">1600p · 23.976 fps · DV 8.1 · <span class="warning">letterboxed, offsets applied</span></div>
+
+        <div style="height:14px"></div>
+        <div class="field-label"><span>HDR10+ metadata</span><span>optional</span></div>
+        <div class="picker unset">
+          <span class="name">Same as base</span>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Output</div>
+        <div style="height:12px"></div>
+        <div class="picker">
+          <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          <span class="name truncate">D:\Rips\Hybrid</span>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="probe">Movie.2024.2160p.UHD.BluRay.HDR10+.hybrid.mkv</div>
+      </div>
+
+      <div>
+        <button class="disc" id="offs-toggle"><svg viewBox="0 0 24 24" id="offs-chev"><path d="M9 6l6 6-6 6"/></svg>Sync offsets <span id="offs-summary">· HDR10+ −42 ms</span></button>
+        <div id="offs" class="hidden" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:12px">
+          <div>
+            <div class="field-label"><span>Dolby Vision</span></div>
+            <div class="input"><input value="0"/><span class="muted sm">ms</span></div>
+          </div>
+          <div>
+            <div class="field-label"><span>HDR10+</span></div>
+            <div class="input"><input value="-42"/><span class="muted sm">ms</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grow"></div>
+      <button class="btn secondary block"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add to queue</button>
+    </aside>
+
+    <!-- ---------- Main: queue ---------- -->
+    <div class="main">
+      <div class="main-content">
+        <div class="toolbar">
+          <div style="display:flex;align-items:baseline;min-width:0"><h2>Queue</h2><span class="status num" id="q-status">3 jobs · 14 files · 1 running</span></div>
+          <div class="right">
+            <button class="icon-btn" title="Remove finished"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+            <button class="btn secondary" id="b-start"><svg viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></svg>Start</button>
+            <button class="btn secondary hidden" id="b-stop"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>Stop</button>
+            <button class="icon-btn" title="More"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></button>
+          </div>
+        </div>
+
+        <div class="card table" id="table">
+          <div class="thead">
+            <div><span class="chk on"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+            <div>Name</div><div>Progress</div><div>Status</div><div>ETA</div><div></div>
+          </div>
+          <div class="scroll" id="rows"></div>
+        </div>
+      </div>
+
+      <div class="log" id="log">
+        <div class="lbar">
+          <h2>Log</h2><span class="xs muted num">1 024 lines</span>
+          <span class="sel" style="margin-left:8px">All levels <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+          <span class="sel">All tools <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+          <div style="margin-left:auto;display:flex;gap:2px">
+            <button class="icon-btn" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+            <button class="icon-btn" title="Save…"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></button>
+            <button class="icon-btn" title="Clear"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+            <button class="icon-btn" title="Hide log ⌘2"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+          </div>
+        </div>
+        <div class="lines">
+          <div class="ln lv-info"><span class="t">14:02:11.204</span><span class="l">info</span><span class="s">app</span><span>Processing: D:\Rips\Hybrid\Movie.2024.2160p.UHD.BluRay.HDR10+.hybrid.mkv</span></div>
+          <div class="ln lv-info"><span class="t">14:02:12.010</span><span class="l">info</span><span class="s">ffprobe</span><span>HDR: 3840x2160 @ 23.976 fps (hevc) | DV: 3840x1600 @ 23.976 fps (hevc)</span></div>
+          <div class="ln lv-warn"><span class="t">14:02:12.011</span><span class="l">warn</span><span class="s">app</span><span>HDR source carries letterbox bars (2160 vs DV 1600): 280 px offsets will be added to the RPU</span></div>
+          <div class="ln lv-info"><span class="t">14:02:12.020</span><span class="l">info</span><span class="s">mkvmerge</span><span>Step 1: Extract Audio &amp; Subtitles</span></div>
+          <div class="ln lv-ok"><span class="t">14:02:40.318</span><span class="l">done</span><span class="s">mkvmerge</span><span>Step 1 completed (28.3 s)</span></div>
+          <div class="ln lv-info"><span class="t">14:02:40.320</span><span class="l">info</span><span class="s">mkvextract</span><span>Step 2: Extract DV Video</span></div>
+          <div class="ln lv-ok"><span class="t">14:04:03.771</span><span class="l">done</span><span class="s">mkvextract</span><span>Step 2 completed (83.4 s)</span></div>
+          <div class="ln lv-info"><span class="t">14:04:03.772</span><span class="l">info</span><span class="s">dovi_tool</span><span>Step 3: Extract RPU Data</span></div>
+          <div class="ln lv-info"><span class="t">14:04:31.105</span><span class="l">info</span><span class="s">dovi_tool</span><span>Step 3: Edit RPU metadata (crop 280/280, duplicate 1 frame)</span></div>
+          <div class="ln lv-info"><span class="t">14:04:35.900</span><span class="l">info</span><span class="s">mkvextract</span><span>Step 4: Extract HDR10 Video</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- Preferences dialog ---------- -->
+    <div class="overlay" id="prefs">
+      <div class="dialog">
+        <div class="dnav">
+          <button class="on" data-p="general"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>General</button>
+          <button data-p="tools"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0 5 5L9.6 21.4a2 2 0 0 1-2.8-2.8L16.9 8.5a4 4 0 0 0-2.2-2.2z"/></svg>Tools</button>
+          <button data-p="presets"><svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>Presets</button>
+          <button data-p="appearance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg>Appearance</button>
+          <button data-p="about"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>About</button>
+        </div>
+        <button class="icon-btn dclose" id="prefs-close"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+
+        <div class="dmain" id="dp-general">
+          <div class="crumb">Preferences <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg> <b>General</b></div>
+          <div class="dsec">Processing</div>
+          <div class="drow"><div class="lab">Parallel workers</div><div class="input"><input value="4"/></div><div class="help">How many files a folder job processes at once. Each worker is CPU and disk heavy; 2–4 is a sensible range.</div></div>
+          <div class="drow"><div class="lab">Keep temporary files <span class="switch"></span></div><div class="help">Leaves the .hevc, .bin, .json and .mka intermediates next to the output instead of deleting them after the final mux.</div></div>
+          <div class="drow"><div class="lab">Default output folder</div><div style="display:flex;gap:8px"><div class="input" style="flex:1"><input value="D:\Rips\Hybrid"/></div><button class="btn secondary">Browse…</button></div><div class="help">Used when a job has no explicit output. Files are named <span class="mono">&lt;base name&gt;.hybrid.mkv</span>.</div></div>
+          <div class="dsec" style="margin-top:8px">Notifications</div>
+          <div class="drow"><div class="lab">Notify when a job finishes <span class="switch on"></span></div><div class="help">Posts a system notification with the result, including failures. Only when the window is in the background.</div></div>
+          <div class="drow"><div class="lab">Play a sound <span class="switch"></span></div></div>
+        </div>
+
+        <div class="dmain hidden" id="dp-tools">
+          <div class="crumb">Preferences <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg> <b>Tools</b></div>
+          <div class="dsec" style="display:flex;justify-content:space-between;align-items:center">External tools <span style="display:flex;gap:8px"><button class="btn outline" style="height:30px">Re-scan</button><button class="btn secondary" style="height:30px">Download missing</button></span></div>
+          <div class="help" style="margin:-8px 0 14px">Nothing is bundled. Downloaded tools go to <span class="mono">%APPDATA%\hybrid-dv-hdr\bin</span>; anything found on PATH is used as-is.</div>
+          <div class="toolrow"><div class="n">dovi_tool<small>RPU extract, edit, inject</small></div><div class="input"><input value="C:\Users\me\AppData\Roaming\hybrid-dv-hdr\bin\dovi_tool.exe"/></div><div class="st success"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>2.1.2</div><button class="btn outline" style="height:30px">Browse…</button></div>
+          <div class="toolrow"><div class="n">hdr10plus_tool<small>HDR10+ metadata</small></div><div class="input"><input placeholder="Not found" value=""/></div><div class="st warning"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>Missing</div><button class="btn secondary" style="height:30px">Download</button></div>
+          <div class="toolrow"><div class="n">mkvmerge<small>Audio/subs, final mux</small></div><div class="input"><input value="C:\Program Files\MKVToolNix\mkvmerge.exe"/></div><div class="st success"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>84.0</div><button class="btn outline" style="height:30px">Browse…</button></div>
+          <div class="toolrow"><div class="n">mkvextract<small>Video demux</small></div><div class="input"><input value="C:\Program Files\MKVToolNix\mkvextract.exe"/></div><div class="st success"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>84.0</div><button class="btn outline" style="height:30px">Browse…</button></div>
+          <div class="toolrow"><div class="n">ffmpeg<small>Probe, MP4 demux</small></div><div class="input"><input value="C:\Users\me\AppData\Roaming\hybrid-dv-hdr\bin\ffmpeg.exe"/></div><div class="st success"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>7.1</div><button class="btn outline" style="height:30px">Browse…</button></div>
+          <div class="toolrow"><div class="n">MediaInfo<small>Optional</small></div><div class="input"><input placeholder="Not set" value=""/></div><div class="st muted">Optional</div><button class="btn outline" style="height:30px">Browse…</button></div>
+          <div class="toolrow"><div class="n">MP4Box<small>Optional MP4 fallback</small></div><div class="input"><input placeholder="Not set" value=""/></div><div class="st muted">Optional</div><button class="btn outline" style="height:30px">Browse…</button></div>
+        </div>
+
+        <div class="dmain hidden" id="dp-presets">
+          <div class="crumb">Preferences <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg> <b>Presets</b></div>
+          <div class="dsec">Presets</div>
+          <div class="help" style="margin:-8px 0 14px">A preset stores offsets, worker count and the keep-temp switch — never file paths.</div>
+          <div class="toolrow" style="grid-template-columns:1fr auto auto"><div class="n">Default<small>4 workers · no offsets</small></div><button class="btn outline" style="height:30px">Apply</button><button class="btn ghost" style="height:30px">Delete</button></div>
+          <div class="toolrow" style="grid-template-columns:1fr auto auto"><div class="n">UHD remux, keep temp<small>2 workers · keep temp · DV −42 ms</small></div><button class="btn outline" style="height:30px">Apply</button><button class="btn ghost" style="height:30px">Delete</button></div>
+          <div style="margin-top:16px"><button class="btn secondary">Save current settings as preset…</button></div>
+        </div>
+
+        <div class="dmain hidden" id="dp-appearance">
+          <div class="crumb">Preferences <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg> <b>Appearance</b></div>
+          <div class="dsec">Theme</div>
+          <div class="drow"><div class="lab">Appearance</div><div class="sel" style="height:36px;width:100%;justify-content:space-between">System <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div><div class="help">Follows the OS light/dark setting.</div></div>
+        </div>
+
+        <div class="dmain hidden" id="dp-about">
+          <div class="crumb">Preferences <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg> <b>About</b></div>
+          <div class="dsec">Hybrid DV HDR</div>
+          <div class="drow"><div class="lab">Version 1.4.0</div><div class="help">Combines Dolby Vision RPU metadata with HDR10 / HDR10+ video. Drives dovi_tool, hdr10plus_tool, MKVToolNix and ffmpeg.</div></div>
+          <div class="drow"><button class="btn outline">Check for updates</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="demo">
+  <b>Theme</b><button class="on" data-theme="dark">Dark</button><button data-theme="light">Light</button>
+  <b>State</b><button class="on" data-state="idle">Idle</button><button data-state="running">Running</button><button data-state="done">Done</button><button data-state="failed">Failed</button><button data-state="empty">Empty</button>
+  <b>Prefs</b><button data-prefs="general">General</button><button data-prefs="tools">Tools</button><button data-prefs="presets">Presets</button>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s); const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const I = {
+  check: '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>',
+  clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  spin: '<svg class="spin" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>',
+  warn: '<svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+  file: '<svg viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/></svg>',
+  folder: '<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  down: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>', right: '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>',
+  x: '<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+  open: '<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v6M9 14l3-3 3 3"/></svg>',
+  skip: '<svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>',
+};
+const STATUS = {
+  queued:   { label: 'Queued',    icon: I.clock, cls: 'muted',   bar: '' },
+  running:  { label: 'Running',   icon: I.spin,  cls: 'info',    bar: 'info' },
+  done:     { label: 'Completed', icon: I.check, cls: 'success', bar: 'success' },
+  failed:   { label: 'Failed',    icon: I.warn,  cls: 'danger',  bar: 'danger' },
+  skipped:  { label: 'Skipped',   icon: I.skip,  cls: 'muted',   bar: '' },
+};
+const STEP_NAMES = [
+  ['Audio & subtitles', 'mkvmerge --no-video'], ['Demux DV video', 'mkvextract'], ['Extract RPU', 'dovi_tool extract-rpu'],
+  ['Demux HDR10 video', 'mkvextract'], ['Inject RPU', 'dovi_tool inject-rpu'], ['Mux output', 'mkvmerge'],
+];
+function steps(list) {
+  const inner = list.map((st, i) => {
+    const m = STATUS[st.s] || STATUS.queued;
+    const pct = st.s === 'running' && st.p != null ? ` ${st.p}%` : '';
+    return `<span class="step ${st.s === 'queued' ? 'pending' : ''} ${m.cls}">${m.icon}<span class="txt">${STEP_NAMES[i][0]}${pct}</span></span>`;
+  }).join('<span class="sep"></span>');
+  const note = list.map(st => st.sub).filter(Boolean).slice(-1)[0];
+  return `<div class="steps">${inner}${note ? `<span class="note">${note}</span>` : ''}</div>`;
+}
+function row(j) {
+  const m = STATUS[j.s]; const pct = j.s === 'done' ? 100 : j.p ?? 0;
+  const pctText = j.s === 'queued' ? '' : `${pct}%`;
+  const sub = j.path ? `${j.src ? j.src + ' · ' : ''}${j.path}` : '';
+  return `<div class="tr ${j.child ? 'child' : ''}">
+    <div>${j.child ? '' : `<span class="chk ${j.sel ? 'on' : ''}">${j.sel ? I.check : ''}</span>`}</div>
+    <div class="name">${j.child ? '' : (j.folder ? `<span class="caret">${j.open ? I.down : I.right}</span>` : '<span style="width:20px"></span>')}${j.folder ? I.folder : I.file}
+      <div class="truncate"><div class="t truncate">${j.name}</div>${sub ? `<div class="p truncate">${sub}</div>` : ''}</div></div>
+    <div class="prog"><div class="bar ${m.bar} ${j.indet ? 'indet' : ''}"><i style="width:${pct}%"></i></div><span class="pct num">${pctText}</span></div>
+    <div class="st ${m.cls}">${m.icon}<span>${j.label ?? m.label}</span>${j.step ? `<span class="sub">· ${j.step}</span>` : ''}</div>
+    <div class="cell-muted num">${j.eta ?? ''}</div>
+    <div class="row-actions">${j.child ? '' : (j.s === 'done' ? `<button class="icon-btn" title="Show in folder">${I.open}</button>` : `<button class="icon-btn" title="Remove">${I.x}</button>`)}</div>
+  </div>${j.steps ? steps(j.steps) : ''}`;
+}
+const JOBS = {
+  idle: [
+    { name: 'Movie.2024.2160p.UHD.BluRay.HDR10+.hybrid.mkv', path: 'D:\\Rips\\Hybrid', src: 'HDR10+ · DV · −42 ms', s: 'queued', sel: true },
+    { name: 'Series S01 (12 files)', path: 'D:\\Rips\\HDR\\S01 + D:\\Rips\\DV\\S01 → D:\\Rips\\Hybrid\\S01', src: 'HDR10 · DV', s: 'queued', sel: true, folder: true },
+    { name: 'Another.Film.2023.hybrid.mkv', path: 'D:\\Rips\\Hybrid', src: 'HDR10 · DV', s: 'queued', sel: false },
+  ],
+  running: [
+    { name: 'Movie.2024.2160p.UHD.BluRay.HDR10+.hybrid.mkv', path: 'D:\\Rips\\Hybrid', src: 'HDR10+ · DV · −42 ms', s: 'done', sel: true, eta: '6m 42s' },
+    { name: 'Series S01 (12 files)', path: 'D:\\Rips\\HDR\\S01 + D:\\Rips\\DV\\S01 → D:\\Rips\\Hybrid\\S01', src: 'HDR10 · DV', s: 'running', p: 41, sel: true, folder: true, open: true, step: '5 of 12', eta: '18m' },
+    { name: 'Series.S01E05.2160p.HDR.mkv', s: 'done', child: true, eta: '5m 51s' },
+    { name: 'Series.S01E06.2160p.HDR.mkv', s: 'running', p: 58, child: true, step: 'Demux HDR10', eta: '2m 10s',
+      steps: [{ s: 'done' }, { s: 'done' }, { s: 'done' }, { s: 'running', p: 58, sub: 'HDR10+ metadata: extract → inject' }, { s: 'queued' }, { s: 'queued' }] },
+    { name: 'Series.S01E07.2160p.HDR.mkv', s: 'running', p: 22, child: true, step: 'Demux DV', eta: '4m 35s' },
+    { name: 'Series.S01E08.2160p.HDR.mkv', s: 'queued', child: true },
+    { name: 'Another.Film.2023.hybrid.mkv', path: 'D:\\Rips\\Hybrid', src: 'HDR10 · DV', s: 'queued', sel: false },
+  ],
+  done: [
+    { name: 'Movie.2024.2160p.UHD.BluRay.HDR10+.hybrid.mkv', path: 'D:\\Rips\\Hybrid', src: 'HDR10+ · DV · −42 ms', s: 'done', sel: true, eta: '6m 42s' },
+    { name: 'Series S01 (12 files)', path: 'D:\\Rips\\HDR\\S01 + D:\\Rips\\DV\\S01 → D:\\Rips\\Hybrid\\S01', src: 'HDR10 · DV', s: 'done', sel: true, folder: true, eta: '41m 08s' },
+    { name: 'Another.Film.2023.hybrid.mkv', path: 'D:\\Rips\\Hybrid', src: 'HDR10 · DV', s: 'done', sel: true, eta: '7m 03s' },
+  ],
+  failed: [
+    { name: 'Movie.2024.2160p.UHD.BluRay.HDR10+.hybrid.mkv', path: 'D:\\Rips\\Hybrid', src: 'HDR10+ · DV · −42 ms', s: 'failed', p: 34, sel: true, open: true, step: 'Extract RPU',
+      steps: [{ s: 'done' }, { s: 'done' }, { s: 'failed', p: 100, sub: 'dovi_tool: no RPU found in stream' }, { s: 'queued' }, { s: 'queued' }, { s: 'queued' }] },
+    { name: 'Series S01 (12 files)', path: 'D:\\Rips\\HDR\\S01 + D:\\Rips\\DV\\S01 → D:\\Rips\\Hybrid\\S01', src: 'HDR10 · DV', s: 'queued', sel: true, folder: true },
+  ],
+  empty: [],
+};
+const STATUS_LINE = { idle: '3 jobs · 14 files', running: '3 jobs · 14 files · 1 running', done: '3 jobs · 14 files · all completed', failed: '2 jobs · 13 files · 1 failed', empty: 'Empty' };
+function render(state) {
+  const jobs = JOBS[state]; const rows = $('#rows');
+  $('#q-status').textContent = STATUS_LINE[state];
+  $('#b-start').classList.toggle('hidden', state === 'running'); $('#b-stop').classList.toggle('hidden', state !== 'running');
+  if (!jobs.length) {
+    rows.innerHTML = `<div class="empty"><div class="ring">${I.file}</div><h3>Nothing queued</h3><p>Pick an HDR10 / HDR10+ base and a Dolby Vision donor on the left, then add the pair — or drop files or folders anywhere in this window.</p><div style="display:flex;gap:8px;margin-top:8px"><button class="btn outline">Add files…</button><button class="btn outline">Add folders…</button></div></div>`;
+    return;
+  }
+  rows.innerHTML = jobs.map(row).join('');
+}
+$$('.demo [data-theme]').forEach(b => b.onclick = () => { document.documentElement.className = b.dataset.theme; document.body.style.background = b.dataset.theme === 'light' ? '#d0d0d0' : '#000'; $$('.demo [data-theme]').forEach(x => x.classList.toggle('on', x === b)); });
+$$('.demo [data-state]').forEach(b => b.onclick = () => { render(b.dataset.state); $$('.demo [data-state]').forEach(x => x.classList.toggle('on', x === b)); });
+function openPrefs(p) { $('#prefs').classList.add('open'); $$('.dmain').forEach(x => x.classList.toggle('hidden', x.id !== 'dp-' + p)); $$('.dnav button').forEach(x => x.classList.toggle('on', x.dataset.p === p)); }
+$$('.demo [data-prefs]').forEach(b => b.onclick = () => openPrefs(b.dataset.prefs));
+$$('.dnav button').forEach(b => b.onclick = () => openPrefs(b.dataset.p));
+$('#tb-prefs').onclick = () => openPrefs('general'); $('#tb-tools').onclick = () => openPrefs('tools');
+$('#prefs-close').onclick = () => $('#prefs').classList.remove('open');
+$('#offs-toggle').onclick = () => { const o = $('#offs'); o.classList.toggle('hidden'); $('#offs-chev').style.transform = o.classList.contains('hidden') ? '' : 'rotate(90deg)'; };
+$('#tb-log').onclick = () => $('#log').classList.toggle('hidden');
+$('#b-start').onclick = () => { render('running'); }; $('#b-stop').onclick = () => { render('idle'); };
+render('idle');
+</script>
+</body>
+</html>

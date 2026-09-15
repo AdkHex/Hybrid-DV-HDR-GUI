@@ -1,67 +1,153 @@
-name: release
+name: Release
 
+# Every push to main publishes a new release, which is what makes installed
+# apps update: the updater only offers a release whose version is higher than
+# the one it is running, so each push bumps the patch version first.
+#
+# Doc-only pushes are skipped - they would otherwise churn out releases with no
+# change to install.
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'design/**'
+      - '.vscode/**'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Which part of the version to raise'
+        default: patch
+        type: choice
+        options: [patch, minor, major]
 
-permissions:
-  contents: write
+# Releases are serialised. Two runs bumping the version at once would race on
+# the push to main, and the loser would fail after a full build.
+concurrency:
+  group: hybrid-dv-hdr-release
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
-  release:
+  windows:
+    name: Windows installer
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
+      # Release whatever main currently is, not the sha that triggered this
+      # run. Two pushes in quick succession queue on the concurrency group, and
+      # the second would otherwise try to push its version bump onto a main
+      # that had moved on - failing after a full build.
+      - name: Move to the tip of main
+        shell: bash
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+
+      # Both checks run before anything is built or committed: a missing key
+      # otherwise fails deep inside the bundler, after a version bump has
+      # already been pushed.
+      - name: Check the updater signing key is available
+        shell: bash
+        env:
+          SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$SIGNING_KEY" ]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY is not set. Add it under Settings > Secrets and variables > Actions. Without it the updater artifacts cannot be signed, and installed apps would never see this release."
+            exit 1
+          fi
+
+      - name: Check the updater public key is configured
+        shell: bash
+        run: |
+          node -e "const c=require('./src-tauri/tauri.conf.json'); const k=c?.plugins?.updater?.pubkey; if(!k||k.includes('YOUR_UPDATER_PUBLIC_KEY_HERE')){ console.error('Updater pubkey is not configured in src-tauri/tauri.conf.json (plugins.updater.pubkey).'); process.exit(1);} console.log('Updater pubkey is configured.');"
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 'lts/*'
+          cache: npm
 
-      - name: Install Rust
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install WiX Toolset
-        run: choco install wixtoolset -y
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          cache-on-failure: true
 
-      - name: Install NSIS
-        run: choco install nsis -y
-
-      - name: Install dependencies
+      - name: Install frontend dependencies
         run: npm ci
 
-      - name: Set app version
-        env:
-          APP_VERSION: 1.${{ github.run_number }}.0
+      # Every push ships to users, so a broken commit must not become a
+      # release. The Rust side is compiled by the bundle step itself; its unit
+      # tests run here.
+      - name: Run checks
+        shell: bash
         run: |
-          $minor = [int]${{ github.run_number }} - 1
-          if ($minor -lt 0) { $minor = 0 }
-          $env:APP_VERSION = "1.$minor.0"
-          $env:APP_VERSION_LABEL = "1.$minor"
-          node -e 'const fs=require("fs");const conf=JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json","utf8"));conf.package.version=process.env.APP_VERSION;fs.writeFileSync("src-tauri/tauri.conf.json",JSON.stringify(conf,null,2));const cargo=fs.readFileSync("src-tauri/Cargo.toml","utf8").replace(/version = ".*"/, `version = "${process.env.APP_VERSION}"`);fs.writeFileSync("src-tauri/Cargo.toml", cargo);'
-          Add-Content $env:GITHUB_ENV "APP_VERSION=$env:APP_VERSION"
-          Add-Content $env:GITHUB_ENV "APP_VERSION_LABEL=$env:APP_VERSION_LABEL"
+          npm run typecheck
+          npm run lint
+          npm run format:check
+          # `tauri::generate_context!` needs the frontend bundle on disk.
+          npm run build
+          npm run rust:test
 
-      - name: Build app
+      - name: Raise the version
+        id: bump
+        shell: bash
+        run: |
+          version="$(node scripts/bump-version.js "${{ inputs.bump || 'patch' }}")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing v$version"
+
+      - name: Commit and tag the version
+        shell: bash
+        run: |
+          version="${{ steps.bump.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+          git commit -m "Release v$version [skip ci]"
+          git tag "v$version"
+          # A push made with GITHUB_TOKEN does not start another workflow run,
+          # so this cannot loop. The [skip ci] marker says so out loud too.
+          git push origin HEAD:main
+          git push origin "v$version"
+
+      # NSIS only, deliberately. Shipping an .msi as well would let someone
+      # install one flavour and be updated into the other, ending up with two
+      # copies of the app; the NSIS installer also installs per-user, so
+      # neither installing nor updating needs an admin prompt.
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
         env:
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: npm run tauri:build
-
-      - name: List bundle outputs
-        run: Get-ChildItem -Path src-tauri/target/release/bundle -Recurse | Select-Object FullName
-
-      - name: Release
-        uses: softprops/action-gh-release@v2
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tag_name: v${{ env.APP_VERSION }}
-          name: Auto-DV-HDR-Setup.v${{ env.APP_VERSION_LABEL }}
-          generate_release_notes: true
+          tagName: v${{ steps.bump.outputs.version }}
+          releaseName: 'Hybrid DV HDR v${{ steps.bump.outputs.version }}'
+          releaseBody: |
+            Download `Hybrid DV HDR_${{ steps.bump.outputs.version }}_x64-setup.exe` and run it.
+
+            Already have it installed? You do not need this page — the app
+            checks for updates on startup and offers this version itself.
+
+            **Changes**: https://github.com/${{ github.repository }}/commits/v${{ steps.bump.outputs.version }}
+          # Published, not a draft. The updater reads
+          # /releases/latest/download/latest.json, and a draft release is never
+          # "latest" - leaving it as a draft is what makes every client report
+          # that it is already up to date.
+          releaseDraft: false
           prerelease: false
-          draft: false
-          files: |
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.exe
-            src-tauri/target/release/bundle/**/*.zip
-            src-tauri/target/release/bundle/**/*.sig
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
+          args: --bundles nsis

@@ -1,27 +1,18 @@
-import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
-import "./index.css";
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+import './App.css'
+import { useAppStore } from './store/app-store'
+import { useSettingsStore } from './store/settings-store'
 
-const root = document.getElementById("root");
-
-const showFatal = (message: string) => {
-  if (!root) {
-    document.body.innerHTML = `<pre style="white-space:pre-wrap;font-family:monospace;padding:16px;">${message}</pre>`;
-    return;
-  }
-  root.innerHTML = `<pre style="white-space:pre-wrap;font-family:monospace;padding:16px;">${message}</pre>`;
-};
-
-window.addEventListener("error", (event) => {
-  showFatal(`App error: ${event.message}`);
-});
-
-window.addEventListener("unhandledrejection", (event) => {
-  showFatal(`App error: ${String(event.reason)}`);
-});
-
-if (!root) {
-  showFatal("Root element #root not found.");
-} else {
-  createRoot(root).render(<App />);
+// Dev only: lets the stores be poked from the devtools console when the UI is
+// opened in a plain browser, where no backend events arrive.
+if (import.meta.env.DEV) {
+  Object.assign(window, { __app: useAppStore, __settings: useSettingsStore })
 }
+
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)

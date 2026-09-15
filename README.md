@@ -1,66 +1,54 @@
-# Hybrid DV/HDR GUI
+# Hybrid DV HDR
 
-Desktop GUI for Hybrid Dolby Vision/HDR workflows.
+Windows desktop app that injects the Dolby Vision RPU from one source into an
+HDR10 / HDR10+ stream, producing a hybrid `.mkv`. Built with Tauri 2, React and
+Tailwind, in the same style as GDExplorer and RsKV.
 
-## Requirements
+The app drives external command-line tools; nothing is bundled. Required:
+[dovi_tool](https://github.com/quietvoid/dovi_tool),
+[mkvmerge / mkvextract](https://mkvtoolnix.download/). Optional:
+[hdr10plus_tool](https://github.com/quietvoid/hdr10plus_tool) (HDR10+ jobs),
+[ffmpeg](https://ffmpeg.org/) (MP4 / raw streams),
+[MediaInfo](https://mediaarea.net/en/MediaInfo), [MP4Box](https://gpac.io/).
+Preferences → Tools shows what was found and can download the missing ones.
 
-- Node.js 18+ and npm (recommended via [nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
-- Tauri prerequisites if building the desktop app: https://tauri.app/v1/guides/getting-started/prerequisites
+## How a job runs
 
-## Getting started
+1. Both sources are probed (`mkvmerge -J`, MediaInfo as fallback); frame rates
+   must match, and a height difference is written into the RPU as letterbox
+   offsets.
+2. Audio and subtitles are pulled from the base (`mkvmerge --no-video`).
+3. The DV video is demuxed and its RPU extracted (`dovi_tool extract-rpu`),
+   then edited for offsets and sync delay when needed.
+4. The HDR10 video is demuxed; with an HDR10+ source its metadata is extracted,
+   optionally delayed, and injected (`hdr10plus_tool`).
+5. The RPU is injected (`dovi_tool inject-rpu`) and everything is muxed
+   (`mkvmerge`). Temp files sit next to the output and are removed unless
+   "Keep temporary files" is on.
 
-```sh
-# Clone the repository
-git clone <YOUR_GIT_URL>
-
-# Enter the project
-cd <YOUR_PROJECT_NAME>
-
-# Install dependencies
-npm install
-```
+Folder pairs are matched by name and run across parallel workers (Preferences →
+General).
 
 ## Development
 
-```sh
-# Start the Vite dev server
-npm run dev
-```
-
-## Build
+Node.js 20+, Rust stable, and the
+[Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/). On Windows
+the NSIS bundler is fetched by Tauri itself.
 
 ```sh
-# Build the web app
-npm run build
-
-# Build a dev-mode web bundle
-npm run build:dev
+npm install
+npm run tauri:dev      # desktop app with hot reload
+npm run dev            # UI only, in a browser (no backend)
+npm run tauri:build    # NSIS installer under src-tauri/target/release/bundle
 ```
 
-## Desktop (Tauri)
+Checks: `npm run typecheck`, `npm run lint`, `npm run format:check`,
+`npm run rust:test`.
 
-```sh
-# Run the desktop app in dev mode
-npm run tauri:dev
+## Releases and auto-update
 
-# Build the desktop app
-npm run tauri:build
-```
-
-## Lint
-
-```sh
-npm run lint
-```
-
-## Tech stack
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## Deployment
-
-Deployment is project-specific. For a hosted web build, run `npm run build` and serve the generated assets.
+Every push to `main` bumps the patch version, builds the installer and
+publishes a GitHub release; installed copies download it in the background and
+offer a restart from the title bar. See
+[docs/UPDATER_GITHUB_RELEASES.md](docs/UPDATER_GITHUB_RELEASES.md) for the
+signing keys and the details.

@@ -24,3 +24,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Rust / Tauri build artefacts
+src-tauri/target/
+src-tauri/gen/schemas/
+src-tauri/bin/
+bin/
+*.part
