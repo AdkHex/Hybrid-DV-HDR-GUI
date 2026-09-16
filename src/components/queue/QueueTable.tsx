@@ -5,6 +5,9 @@ import {
   File,
   Folder,
   FolderOpen,
+  FilePlus,
+  FolderPlus,
+  Import,
   ListPlus,
   MoreHorizontal,
   Play,
@@ -15,8 +18,8 @@ import {
 import { cn } from '@/lib/utils'
 import { dirName } from '@/lib/paths'
 import { formatDuration, formatMs } from '@/lib/format'
-import { api, isTauri, pickFiles, pickFolder, revealPath } from '@/lib/tauri'
-import { assignDroppedPaths, canRun, isFolderPair, jobTitle } from '@/lib/jobs'
+import { api, isTauri, pickFiles, pickFolders, revealPath } from '@/lib/tauri'
+import { canRun, importPaths, isFolderPair, jobTitle } from '@/lib/jobs'
 import { startQueue, stopQueue } from '@/lib/processing'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -272,14 +275,11 @@ function JobRow({ job, files }: { job: Job; files: FileEntry[] }) {
   )
 }
 
-async function pick(kind: 'files' | 'folder') {
+async function pick(kind: 'files' | 'folders') {
   if (!isTauri()) return
   try {
-    const paths =
-      kind === 'files'
-        ? await pickFiles()
-        : [await pickFolder()].filter((p): p is string => !!p)
-    if (paths.length) assignDroppedPaths(await api.inspectPaths(paths))
+    const paths = kind === 'files' ? await pickFiles() : await pickFolders()
+    if (paths.length) importPaths(await api.inspectPaths(paths))
   } catch (error) {
     useAppStore
       .getState()
@@ -294,18 +294,11 @@ function EmptyState() {
         <ListPlus className="size-6 text-muted-foreground" />
       </div>
       <p className="text-base font-medium">Nothing queued</p>
-      <p className="max-w-[420px] text-[13px] text-muted-foreground">
-        Pick an HDR video and a Dolby Vision video on the left, then add the
-        pair — or drop files or folders anywhere in this window.
+      <p className="max-w-[440px] text-[13px] text-muted-foreground">
+        Use Import to pick files or folders, drop them anywhere in this window,
+        or fill in the pair on the left. Several folders at once are paired by
+        name and queued as separate items.
       </p>
-      <div className="mt-2 flex gap-2">
-        <Button variant="outline" onClick={() => void pick('files')}>
-          Add files…
-        </Button>
-        <Button variant="outline" onClick={() => void pick('folder')}>
-          Add folders…
-        </Button>
-      </div>
     </div>
   )
 }
@@ -371,6 +364,21 @@ export function QueueTable() {
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary">
+                <Import className="size-3.5" /> Import
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => void pick('files')}>
+                <FilePlus className="size-4" /> Files…
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void pick('folders')}>
+                <FolderPlus className="size-4" /> Folders…
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

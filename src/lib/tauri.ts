@@ -67,6 +67,11 @@ export async function pickFiles(): Promise<string[]> {
   return Array.isArray(picked) ? picked : picked ? [picked] : []
 }
 
+export async function pickFolders(): Promise<string[]> {
+  const picked = await open({ multiple: true, directory: true })
+  return Array.isArray(picked) ? picked : picked ? [picked] : []
+}
+
 export async function pickFolder(defaultPath?: string): Promise<string | null> {
   const picked = await open({ multiple: false, directory: true, defaultPath })
   return typeof picked === 'string' ? picked : null
