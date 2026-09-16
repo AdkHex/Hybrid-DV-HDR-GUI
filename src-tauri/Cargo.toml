@@ -1,6 +1,6 @@
 [package]
 name = "hybrid-dv-hdr"
-version = "1.4.3"
+version = "1.4.4"
 description = "Hybrid DV HDR by Ionicboy"
 authors = ["Ionicboy"]
 edition = "2021"
