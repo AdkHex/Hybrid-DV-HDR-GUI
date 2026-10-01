@@ -399,6 +399,59 @@ pub fn is_video_file_name(name: &str) -> bool {
 pub struct FileMatcher {
     base_lower: String,
     contains: Regex,
+    key: MediaKey,
+}
+
+/// Name-independent identity of a release: the show/movie title plus either the
+/// season+episode (series) or the year (movies).
+#[derive(Debug, Clone, PartialEq)]
+enum MediaKey {
+    Episode { title: String, season: u32, episode: u32 },
+    Movie { title: String, year: u32 },
+    Unknown,
+}
+
+/// `S01E06`, `s1e6` or `1x06` anywhere in the token list.
+fn parse_episode(tokens: &[String]) -> Option<(usize, u32, u32)> {
+    let re = Regex::new(r"^s(\d{1,2})e(\d{1,3})(?:e\d+)*$|^(\d{1,2})x(\d{2,3})$").ok()?;
+    for (i, t) in tokens.iter().enumerate() {
+        if let Some(c) = re.captures(t) {
+            let (a, b) = match (c.get(1), c.get(2), c.get(3), c.get(4)) {
+                (Some(a), Some(b), _, _) | (_, _, Some(a), Some(b)) => (a, b),
+                _ => continue,
+            };
+            return Some((i, a.as_str().parse().ok()?, b.as_str().parse().ok()?));
+        }
+    }
+    None
+}
+
+fn media_key(name: &str) -> MediaKey {
+    let tokens: Vec<String> = strip_video_extension(name)
+        .to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|t| !t.is_empty())
+        .map(str::to_string)
+        .collect();
+    if let Some((i, season, episode)) = parse_episode(&tokens) {
+        return MediaKey::Episode {
+            title: tokens[..i].concat(),
+            season,
+            episode,
+        };
+    }
+    // Movie: title is everything before the first year (not at position 0).
+    for (i, t) in tokens.iter().enumerate().skip(1) {
+        if t.len() == 4 && (t.starts_with("19") || t.starts_with("20")) {
+            if let Ok(year) = t.parse() {
+                return MediaKey::Movie {
+                    title: tokens[..i].concat(),
+                    year,
+                };
+            }
+        }
+    }
+    MediaKey::Unknown
 }
 
 impl FileMatcher {
@@ -408,6 +461,7 @@ impl FileMatcher {
         Ok(Self {
             base_lower: base.to_ascii_lowercase(),
             contains,
+            key: media_key(base),
         })
     }
 
@@ -434,7 +488,33 @@ impl FileMatcher {
                 contains = Some(file);
             }
         }
-        prefix.or(contains).cloned()
+        if let Some(found) = prefix.or(contains) {
+            return Some(found.clone());
+        }
+        self.find_by_key(files)
+    }
+
+    /// Fallback when the names differ: same season+episode for series (ignoring
+    /// whatever else the file is called), same title+year for movies.
+    fn find_by_key(&self, files: &[String]) -> Option<String> {
+        let mut candidates = files.iter().filter(|f| match (&self.key, media_key(f)) {
+            (MediaKey::Episode { season, episode, .. }, MediaKey::Episode { season: s, episode: e, .. }) => {
+                *season == s && *episode == e
+            }
+            (MediaKey::Movie { title, year }, MediaKey::Movie { title: t, year: y }) => {
+                *year == y && (*title == t || t.starts_with(title.as_str()) || title.starts_with(&t))
+            }
+            _ => false,
+        });
+        if let MediaKey::Episode { title, .. } = &self.key {
+            let all: Vec<&String> = candidates.collect();
+            // Several shows could share an episode number: prefer the same title.
+            let same_title = all.iter().find(|f| {
+                matches!(media_key(f), MediaKey::Episode { title: t, .. } if t == *title)
+            });
+            return same_title.or(all.first()).map(|f| (*f).clone());
+        }
+        candidates.next().cloned()
     }
 }
 
@@ -547,6 +627,28 @@ mod tests {
         assert_eq!(m.find(&dv).as_deref(), Some("Prefix.Movie.2020.2160p.mkv"));
 
         let m = FileMatcher::new("Nothing").unwrap();
+        assert_eq!(m.find(&dv), None);
+    }
+
+    #[test]
+    fn pairing_falls_back_to_episode_number_or_movie_year() {
+        let dv = vec![
+            "Other.Show.S01E06.2160p.DV.mkv".to_string(),
+            "Marvels.The.Punisher.S01E05.2160p.DV.mkv".to_string(),
+            "Marvels.The.Punisher.S01E06.2160p.DV.HEVC.mkv".to_string(),
+            "The Movie (2020) 2160p DV.mkv".to_string(),
+        ];
+        let base = derive_output_base(
+            "Marvels.the.Punisher.S01E06.The.Judas.Goat.1080p.NF.WEB-DL.Atmos.DDP5.1.HDR.H.265-ExREN.mkv",
+        );
+        let m = FileMatcher::new(&base).unwrap();
+        assert_eq!(
+            m.find(&dv).as_deref(),
+            Some("Marvels.The.Punisher.S01E06.2160p.DV.HEVC.mkv")
+        );
+        let m = FileMatcher::new("The.Movie.2020.1080p").unwrap();
+        assert_eq!(m.find(&dv).as_deref(), Some("The Movie (2020) 2160p DV.mkv"));
+        let m = FileMatcher::new("Other.Movie.2019").unwrap();
         assert_eq!(m.find(&dv), None);
     }
 
